@@ -13,8 +13,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -22,7 +22,7 @@ renderer.toneMappingExposure = 1.0;
 document.body.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x101018);
-const camera = new THREE.PerspectiveCamera(65, innerWidth/innerHeight, 0.1, 10000);
+const camera = new THREE.PerspectiveCamera(65, window.innerWidth/window.innerHeight, 0.1, 10000);
 const staticObjects = [];
 const camRaycaster = new THREE.Raycaster();
 const ambient = new THREE.AmbientLight(0x504840, 0.5);
@@ -72,6 +72,7 @@ function createSoftTexture() {
 }
 const softTex = createSoftTexture();
 
+let envAccum = 0;
 function updateEnvironment(dt) {
   gameTime = (gameTime + dt / 60) % 24;
   const dayAngle = ((gameTime - 6) / 24) * Math.PI * 2;
@@ -84,7 +85,7 @@ function updateEnvironment(dt) {
   moon.position.set(Math.cos(dayAngle + Math.PI)*sunDist, Math.sin(dayAngle + Math.PI)*sunDist, 0);
 
   sun.intensity = Math.max(0, sunUp) * 2.2;
-  moon.intensity = Math.max(0, -sunUp) * 0.5;
+  moon.intensity = Math.max(0, -sunUp) * 0.7; /* Increased moon intensity for better visibility in larger map */
   ambient.intensity = 0.4 + Math.max(0, sunUp) * 0.5;
   hemiLight.intensity = 0.4 + Math.max(0, sunUp) * 0.5;
   stars.material.opacity = Math.max(0, -sunUp);
@@ -92,7 +93,12 @@ function updateEnvironment(dt) {
   const skyCol = new THREE.Color(0x151520).lerp(new THREE.Color(0xc0a080), Math.max(0, sunUp));
   if(Math.abs(sunUp) < 0.2) skyCol.lerp(new THREE.Color(0x4a3a2a), 1 - Math.abs(sunUp)*5);
   scene.background = skyCol;
-  stars.rotation.y += dt * 0.005;
+  // throttle very cheap visual updates that don't need to run every frame
+  envAccum += dt;
+  if (envAccum >= 0.05) {
+    stars.rotation.y += envAccum * 0.005;
+    envAccum = 0;
+  }
 }
 
 function getRandomDir() {
@@ -109,23 +115,23 @@ function getH(pos) {
   
   let mNoise = Math.sin(tx * 0.012) * Math.sin(tz * 0.012);
   mNoise += (Math.sin(tx * 0.05) * Math.sin(tz * 0.05)) * 0.12;
-  if (mNoise > 0.15) h += Math.pow((mNoise - 0.15) * 1.5, 1.8) * 100;
+  if (mNoise > 0.25) h += Math.pow((mNoise - 0.25) * 1.5, 1.8) * 100;
   
   const rNoise = Math.sin(tx * 0.008 + tz * 0.008) * Math.cos(tz * 0.008);
   if (Math.abs(rNoise) < 0.04) h -= (0.04 - Math.abs(rNoise)) * 550;
 
   const bDist = Math.max(Math.abs(pos.x), Math.abs(pos.z));
-  if (bDist > 1400) h += Math.pow((bDist - 1400) / 600, 2) * 600;
+  if (bDist > MAP_SIZE * 0.35) h += Math.pow((bDist - MAP_SIZE * 0.35) / (MAP_SIZE * 0.15), 1.5) * 600; /* Scaled bDist threshold */
 
   const sDistSq = pos.x * pos.x + pos.z * pos.z;
-  if (sDistSq < 10000) {
-    const sFactor = 1.0 - Math.sqrt(sDistSq) / 100;
-    h = Math.max(h, 1.0 + sFactor * 12);
+  if (sDistSq < 160000) { /* Scaled sDistSq for a larger flat center */
+    const sFactor = 1.0 - Math.sqrt(sDistSq) / 400; /* Adjust factor based on new radius (sqrt(160000) = 400) */
+    h = Math.max(h, 1.0 + sFactor * 20); /* Increased center height a bit */
   }
 
   return h;
 }
-const tGeo = new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE, 512, 512);
+const tGeo = new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE, 256, 256);
 tGeo.rotateX(-Math.PI / 2);
 const tp=tGeo.attributes.position;
 const _v = new THREE.Vector3();
@@ -154,44 +160,22 @@ const water = new THREE.Mesh(waterGeo, new THREE.MeshLambertMaterial({color: 0x1
 water.position.y = -0.5;
 scene.add(water);
 
-const GRASS_COUNT = 1000000;
-const gGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.75, 3, 1, true);
-const gMat = new THREE.MeshLambertMaterial({color: 0x5a7a5a, side: THREE.DoubleSide});
-const gMesh = new THREE.InstancedMesh(gGeo, gMat, GRASS_COUNT);
-scene.add(gMesh);
-
-const _d = new THREE.Object3D();
-for (let i = 0; i < GRASS_COUNT; i++) {
-  const gx = (Math.random() - 0.5) * MAP_SIZE;
-  const gz = (Math.random() - 0.5) * MAP_SIZE;
-  const h = getH({ x: gx, z: gz });
-  if (h < 0.5 || h > 40 || (Math.abs(gx) < 12 && Math.abs(gz) < 12)) {
-    _d.scale.set(0,0,0);
-  } else {
-    _d.position.set(gx, h, gz);
-    _d.quaternion.set(0, 0, 0, 1);
-    _d.rotateY(Math.random() * Math.PI);
-    _d.scale.set(1, 0.7 + Math.random() * 0.7, 1);
-    gMesh.setColorAt(i, new THREE.Color().setHSL(.25 + Math.random() * 0.05, .4, .08 + Math.random() * 0.08));
-  }
-  _d.updateMatrix();
-  gMesh.setMatrixAt(i, _d.matrix);
-}
-gMesh.instanceMatrix.needsUpdate = true;
-if(gMesh.instanceColor) gMesh.instanceColor.needsUpdate = true;
-
 const ruins = [];
+const ruinRaycaster = new THREE.Raycaster();
+const RUIN_CHECK_DIST = 30; // Max distance for a goblin to consider colliding with a ruin
 function checkRuinCollision(pos, radius) {
   for (const r of ruins) {
     const distToCenter = pos.distanceTo(r.pos);
-    if (distToCenter < 25) {
+    // Only do detailed part collision if goblin is near the ruin center
+    if (distToCenter < RUIN_CHECK_DIST) {
       for (const p of r.parts) {
         const d = pos.distanceTo(p.world);
         const minDist = p.rad + radius;
         if (d < minDist) {
           const push = new THREE.Vector3().subVectors(pos, p.world).setY(0);
           const up = new THREE.Vector3(0, 1, 0);
-          push.projectOnPlane(up).normalize();
+          // Ensure push vector has some length before normalizing
+          if (push.lengthSq() > 0.0001) push.projectOnPlane(up).normalize();
           pos.addScaledVector(push, minDist - d);
         }
       }
@@ -210,9 +194,10 @@ function makeCastleRuin(spawnPos) {
     const itemSurface = new THREE.Vector3(itemX, ph, itemZ);
     const mesh = new THREE.Mesh(geo, stoneM);
     mesh.castShadow = true;
-    mesh.position.copy(itemSurface).y += geo.parameters.height / 2;
+    mesh.position.copy(itemSurface);
+    const halfHeight = (geo && geo.parameters && geo.parameters.height) ? (geo.parameters.height / 2) : 0;
+    mesh.position.y += halfHeight;
     mesh.rotation.y = rotY;
-    mesh.rotateY(rotY);
     scene.add(mesh);
     staticObjects.push(mesh);
     if(collRad > 0) rData.parts.push({ world: itemSurface.clone(), rad: collRad });
@@ -249,10 +234,6 @@ const treeTemplate = (() => {
   const barkM = new THREE.MeshLambertMaterial({color: new THREE.Color().setHSL(.07, .4, .1)});
   const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.25, .55, th, 8), barkM);
   trunk.position.y = th / 2; trunk.castShadow = true; g.add(trunk);
-  for(let r=0;r<3;r++){
-    const ring=new THREE.Mesh(new THREE.CylinderGeometry(.7+r*.02,.7+r*.02,.12,8),barkM);
-    ring.position.y=.4+r*(th*.25); g.add(ring);
-  }
   const layers = 6;
   for(let l=0;l<layers;l++){
     const pct=l/layers;
@@ -277,8 +258,7 @@ const treeTemplate = (() => {
   g.updateMatrixWorld(true);
   return g;
 })();
-
-const TREE_COUNT = 15000;
+const TREE_COUNT = 6000; /* Increased tree count for a denser forest */
 const treeMatrices = [];
 const _tObj = new THREE.Object3D();
 const _tMat = new THREE.Matrix4();
@@ -294,6 +274,8 @@ for (let i = 0; i < TREE_COUNT; i++) {
   _tObj.position.set(tx, th, tz);
   _tObj.quaternion.set(0, 0, 0, 1);
   _tObj.rotateY(Math.random() * Math.PI * 2);
+  const s = 0.6 + Math.random() * 0.8;
+  _tObj.scale.set(s, s, s);
   _tObj.updateMatrix();
   treeMatrices.push(_tObj.matrix.clone());
 }
@@ -306,22 +288,25 @@ treeTemplate.traverse(child => {
     for (let i = 0; i < TREE_COUNT; i++) {
       inst.setMatrixAt(i, _tMat.copy(treeMatrices[i]).multiply(child.matrix));
     }
+    // ensure GPU sees the instance matrices we wrote
+    inst.instanceMatrix.needsUpdate = true;
+    if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
     scene.add(inst);
   }
 });
 
 const CLOUD_COUNT = 1000;
-const cGeo = new THREE.PlaneGeometry(2, 2);
+const cGeo = new THREE.PlaneGeometry(8, 8); /* Increased cloud size */
 cGeo.rotateX(-Math.PI / 2);
 const cMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.7, map: softTex, depthWrite: false, side: THREE.DoubleSide });
 const cMesh = new THREE.InstancedMesh(cGeo, cMat, CLOUD_COUNT);
 cMesh.frustumCulled = false;
 scene.add(cMesh);
-
+const CLOUD_SPAWN_RADIUS = MAP_SIZE * 0.35;
 const _cObj = new THREE.Object3D();
 for (let i = 0; i < CLOUD_COUNT; i++) {
   const ang = Math.random() * Math.PI * 2;
-  const rad = 1450 + Math.random() * 500;
+  const rad = CLOUD_SPAWN_RADIUS + Math.random() * (MAP_SIZE * 0.125); /* Scale cloud spawn radius */
   const cx = Math.cos(ang) * rad;
   const cz = Math.sin(ang) * rad;
   const cy = 600 + Math.random() * 600;
@@ -333,17 +318,17 @@ for (let i = 0; i < CLOUD_COUNT; i++) {
 }
 cMesh.instanceMatrix.needsUpdate = true;
 
-for (let i = 0; i < 60; i++) {
+for (let i = 0; i < 240; i++) { /* Roughly 4x more ruins for 4x larger area */
   let cx, cz, ch, slope;
   do {
     cx = (Math.random() - 0.5) * MAP_SIZE;
     cz = (Math.random() - 0.5) * MAP_SIZE;
     ch = getH({ x: cx, z: cz });
-    const d = 4;
-    const s1 = Math.abs(getH({ x: cx + d, z: cz }) - getH({ x: cx - d, z: cz })) / (d * 2);
+    const d = 16; /* Increased sample distance for slope calc */
+    const s1 = Math.abs(getH({ x: cx + d, z: cz }) - getH({ x: cx - d, z: cz })) / (d * 2); 
     const s2 = Math.abs(getH({ x: cx, z: cz + d }) - getH({ x: cx, z: cz - d })) / (d * 2);
     slope = Math.max(s1, s2);
-  } while (Math.abs(cx) < 60 && Math.abs(cz) < 60 || ruins.some(r => r.pos.distanceTo(new THREE.Vector3(cx, 0, cz)) < 55) || ch < 5 || slope > 0.15);
+  } while (Math.abs(cx) < 240 && Math.abs(cz) < 240 || ruins.some(r => r.pos.distanceTo(new THREE.Vector3(cx, 0, cz)) < 220) || ch < 5 || slope > 0.06); /* Tightened slope threshold to avoid mountain sides */
   makeCastleRuin({ x: cx, z: cz });
 }
 
@@ -354,6 +339,7 @@ function makeTavern(pos) {
   const group = new THREE.Group();
   group.position.set(pos.x, h, pos.z);
   scene.add(group);
+  staticObjects.push(group);
 
   // Foundation/Floor
   const floor = new THREE.Mesh(new THREE.BoxGeometry(16, 0.6, 16), stoneM);
@@ -454,35 +440,68 @@ staffGroup.rotation.set(0,0,0);
 
 const lightningBolts = [];
 function makeLightningGeometry(start, end, forks=4, spread=0.7){
-  const points=[];
+  // Build a segmented polyline (pairs of points) representing lightning. We clone points
+  // to avoid accidental shared references and deduplicate consecutive identical points
+  // which can create zero-length LineSegments.
+  const points = [];
   function segment(a,b,depth){
-    if(depth<=0){ points.push(a,b); return; }
-    const mid=new THREE.Vector3().lerpVectors(a,b,.5);
-    mid.x+=(Math.random()-.5)*spread;
-    mid.y+=(Math.random()-.5)*spread;
-    mid.z+=(Math.random()-.5)*spread;
-    segment(a,mid,depth-1);
-    segment(mid,b,depth-1);
-    if(depth===2&&Math.random()<.5){
-      const forkEnd=mid.clone().add(new THREE.Vector3((Math.random()-.5)*spread*2,-(Math.random()*spread),(Math.random()-.5)*spread*2));
-      segment(mid,forkEnd,depth-2);
+    if(depth<=0){ points.push(a.clone(), b.clone()); return; }
+    const mid = new THREE.Vector3().lerpVectors(a, b, .5);
+    mid.x += (Math.random() - .5) * spread;
+    mid.y += (Math.random() - .5) * spread;
+    mid.z += (Math.random() - .5) * spread;
+    segment(a, mid, depth - 1);
+    segment(mid, b, depth - 1);
+    if(depth === 2 && Math.random() < .5){
+      const forkEnd = mid.clone().add(new THREE.Vector3((Math.random() - .5) * spread * 2, -(Math.random() * spread), (Math.random() - .5) * spread * 2));
+      segment(mid, forkEnd, depth - 2);
     }
   }
-  segment(start,end,forks);
-  return points;
+  segment(start, end, forks);
+  const out = [];
+  for(let i=0;i<points.length;i++){
+    if(i === 0 || !points[i].equals(points[i-1])) out.push(points[i]);
+  }
+  return out;
 }
+
+const _boltGeo = new THREE.CylinderGeometry(1, 1, 1, 4);
+
 function spawnLightning(from, to, range){
   const spread = range ? 1.5 : 0.5;
   const pts = makeLightningGeometry(from.clone(), to.clone(), range?5:3, spread);
-  const geo = new THREE.BufferGeometry().setFromPoints(pts);
-  const mat = new THREE.LineBasicMaterial({color:0x88ffff, linewidth:3, transparent:true, opacity:1.0});
-  const bolt = new THREE.LineSegments(geo, mat);
+  const radius = range ? 0.12 : 0.04;
+  const segmentCount = pts.length / 2;
+
+  const boltMat = new THREE.MeshBasicMaterial({color:0x88ffff, transparent:true, opacity:1.0});
+  const bolt = new THREE.InstancedMesh(_boltGeo, boltMat, segmentCount);
+  
+  const matrix = new THREE.Matrix4();
+  const _pos = new THREE.Vector3(), _quat = new THREE.Quaternion(), _sca = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
+
+  for(let i=0; i<segmentCount; i++){
+    const p1 = pts[i*2], p2 = pts[i*2+1];
+    const dir = new THREE.Vector3().subVectors(p2, p1);
+    const len = dir.length();
+    if(len < 0.0001) { matrix.makeScale(0,0,0); bolt.setMatrixAt(i, matrix); continue; }
+    _pos.addVectors(p1, p2).multiplyScalar(0.5);
+    _quat.setFromUnitVectors(_up, dir.normalize());
+    _sca.set(radius, len, radius);
+    matrix.compose(_pos, _quat, _sca);
+    bolt.setMatrixAt(i, matrix);
+  }
+  bolt.instanceMatrix.needsUpdate = true;
   scene.add(bolt);
-  const corePts = [from.clone(), to.clone()];
-  const coreGeo = new THREE.BufferGeometry().setFromPoints(corePts);
-  const coreMat = new THREE.LineBasicMaterial({color:0xffffff, transparent:true, opacity:0.9});
-  const core = new THREE.Line(coreGeo, coreMat);
+
+  const coreMat = new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:0.9});
+  const core = new THREE.Mesh(_boltGeo, coreMat);
+  const coreDir = to.clone().sub(from);
+  const coreLen = coreDir.length();
+  core.position.copy(from).lerp(to, 0.5);
+  core.quaternion.setFromUnitVectors(_up, coreDir.normalize());
+  core.scale.set(radius * 0.5, coreLen, radius * 0.5);
   scene.add(core);
+
   const flash = new THREE.PointLight(0x88ccff, 6, range ? 25 : 10);
   flash.position.copy(to);
   scene.add(flash);
@@ -499,6 +518,8 @@ function updateLightning(dt){
     b.flash.intensity=t*4;
     if(b.age>=b.maxAge){
       scene.remove(b.bolt,b.core,b.flash);
+      b.bolt.material.dispose();
+      b.core.material.dispose();
       lightningBolts.splice(i,1);
     }
   }
@@ -513,7 +534,7 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('keyup',e=>{ keys[e.code]=false; });
 
 let isDragging=false, lastMX=0, lastMY=0;
-let mouseX=innerWidth/2, mouseY=innerHeight/2;
+let mouseX=window.innerWidth/2, mouseY=window.innerHeight/2;
 let chargeStart=0, isCharging=false;
 window.addEventListener('mousemove',e=>{
   mouseX=e.clientX; mouseY=e.clientY;
@@ -597,7 +618,7 @@ function triggerLightning(holdTime){
   if(intersects.length > 0){
     targetPos = intersects[0].point;
   } else {
-    const dist = range ? (40 + holdTime * 15) : 8;
+    const dist = range ? Math.min(40 + holdTime * 15, 300) : 8;
     targetPos = raycaster.ray.origin.clone().addScaledVector(raycaster.ray.direction, dist);
   }
   targetPos.y = Math.max(getH(targetPos), 0);
@@ -631,6 +652,8 @@ const goblinTeethM = new THREE.MeshLambertMaterial({color:0xffffcc});
 const goblinWeapM  = new THREE.MeshLambertMaterial({color:0x888888});
 const goblinDynM   = new THREE.MeshLambertMaterial({color:0xcc0000});
 const goblinWickM  = new THREE.MeshLambertMaterial({color:0x222222});
+const goblinHitMat = new THREE.MeshLambertMaterial({color:0xffffff, emissive:0xffffff, emissiveIntensity:1});
+const goblinDeadMat = new THREE.MeshLambertMaterial({color:0x3a4a2a});
 
 function makeGoblinMesh(){
   const g = new THREE.Group();
@@ -716,7 +739,7 @@ function spawnGoblin() {
   });
 }
 
-for(let i=0;i<800;i++){
+for(let i=0;i<800;i++){ /* Reduced goblin count for performance */
   spawnGoblin();
 }
 function applyGoblinWalk(m, t, spd){
@@ -739,9 +762,11 @@ function damageGoblin(goblin, dmg){
   goblin.state=GOBLIN_HIT;
   goblin.hitTimer=0.25;
   goblin.mesh.group.traverse(c=>{
-    if(c.isMesh) { c._origMat=c._origMat||c.material; c.material=new THREE.MeshLambertMaterial({color:0xffffff,emissive:0xffffff,emissiveIntensity:1}); }
+    if(c.isMesh) { c._origMat=c._origMat||c.material; c.material=goblinHitMat; }
   });
   setTimeout(()=>{
+    // Only restore materials if the goblin is still alive (avoid overwriting death material)
+    if (goblin.dead) return;
     goblin.mesh.group.traverse(c=>{ if(c.isMesh&&c._origMat){ c.material=c._origMat; } });
   },150);
   if(goblin.hp<=0) killGoblin(goblin);
@@ -752,7 +777,7 @@ function killGoblin(goblin){
   goblin.state=GOBLIN_DEAD;
   goblin.deathTimer=0;
   goblin.mesh.group.traverse(c=>{
-    if(c.isMesh) c.material=new THREE.MeshLambertMaterial({color:0x3a4a2a});
+    if(c.isMesh) c.material=goblinDeadMat;
   });
   const push = goblin.pos.clone().sub(playerPos).normalize();
   goblin.deathVel = push.setY(0).normalize().multiplyScalar(25 + Math.random()*15);
@@ -780,7 +805,12 @@ let playerHp=100, playerMaxHp=100;
 function damagePlayer(dmg){
   // Player is invincible to ensure the game never ends
 }
+let goblinAccum = 0;
 function updateGoblins(dt, playerPos){
+  goblinAccum += dt;
+  const detailed = goblinAccum >= 0.05;
+  if (detailed) goblinAccum = 0;
+
   goblins.forEach(gb=>{
     if(gb.dead){
       if(gb.exploded) return;
@@ -801,12 +831,57 @@ function updateGoblins(dt, playerPos){
       }
       return;
     }
+
+    // common lightweight updates
     gb.stateTimer+=dt;
     gb.attackCooldown=Math.max(0,gb.attackCooldown-dt);
-    if(gb.hitTimer>0){ gb.hitTimer-=dt; return; }
+    if(gb.hitTimer>0){ gb.hitTimer-=dt; if(!detailed) return; }
 
     const distToPlayer=gb.pos.distanceTo(playerPos);
     const DETECT_RANGE=22, CHASE_RANGE=30, ATTACK_RANGE=1.8;
+
+    // If we're not doing a detailed tick, do a simplified, cheaper update
+    if(!detailed){
+      if(gb.state!==GOBLIN_ATTACK){
+        if(distToPlayer<ATTACK_RANGE && gb.attackCooldown<=0){
+          gb.state=GOBLIN_ATTACK; gb.animT=0; gb.stateTimer=0;
+        } else if(distToPlayer<DETECT_RANGE){
+          gb.state=GOBLIN_CHASE;
+        } else if(distToPlayer>CHASE_RANGE && gb.state===GOBLIN_CHASE){
+          gb.state=GOBLIN_PATROL; gb.stateTimer=0;
+        }
+      }
+
+      if(gb.state===GOBLIN_PATROL){
+        if(gb.stateTimer>4||gb.pos.distanceTo(gb.patrolTarget)<1.5){
+          gb.patrolTarget.set(gb.pos.x + (Math.random()-0.5)*30, 0, gb.pos.z + (Math.random()-0.5)*30);
+          gb.stateTimer=0;
+        }
+        const dist = gb.pos.distanceTo(gb.patrolTarget);
+        if(dist>0.5){
+          gb.vel.subVectors(gb.patrolTarget, gb.pos).normalize().multiplyScalar(1.8);
+        } else { gb.vel.multiplyScalar(0.8); }
+      } else if(gb.state===GOBLIN_CHASE){
+        const dist = gb.pos.distanceTo(playerPos);
+        if(dist>0.1){
+          gb.vel.subVectors(playerPos, gb.pos).normalize().multiplyScalar(4.5);
+        }
+      } else if(gb.state===GOBLIN_ATTACK){
+        gb.vel.multiplyScalar(0.7);
+      }
+
+      gb.pos.addScaledVector(gb.vel, dt);
+      checkRuinCollision(gb.pos, 0.5);
+      gb.pos.y = Math.max(getH(gb.pos), 0);
+
+      gb.mesh.group.position.copy(gb.pos);
+      gb.mesh.group.rotation.set(0, 0, 0);
+      if (gb.vel.lengthSq() > 0.0001) gb.facingYaw = Math.atan2(gb.vel.x, gb.vel.z);
+      gb.mesh.group.rotation.y = gb.facingYaw;
+      return;
+    }
+
+    // Detailed AI/animation update (runs less frequently)
     if(gb.state!==GOBLIN_ATTACK){
       if(distToPlayer<ATTACK_RANGE && gb.attackCooldown<=0){
         gb.state=GOBLIN_ATTACK; gb.animT=0; gb.stateTimer=0;
@@ -822,7 +897,7 @@ function updateGoblins(dt, playerPos){
         gb.patrolTarget.set(gb.pos.x + (Math.random()-0.5)*30, 0, gb.pos.z + (Math.random()-0.5)*30);
         gb.stateTimer=0;
       }
-      const dist = gb.pos.distanceTo(gb.patrolTarget); 
+      const dist = gb.pos.distanceTo(gb.patrolTarget);
       if(dist>0.5){
         gb.vel.subVectors(gb.patrolTarget, gb.pos).normalize().multiplyScalar(1.8);
         speed = 1.8;
@@ -850,7 +925,7 @@ function updateGoblins(dt, playerPos){
       }
     }
 
-    gb.pos.addScaledVector(gb.vel, dt); 
+    gb.pos.addScaledVector(gb.vel, dt);
     checkRuinCollision(gb.pos, 0.5);
     gb.pos.y = Math.max(getH(gb.pos), 0);
 
@@ -876,9 +951,15 @@ camera.position.set(0, 10, 10);
 const playerPos = new THREE.Vector3(0, 0, 0);
 playerPos.y = Math.max(getH(playerPos), 0) + 1.2;
 const velocity=new THREE.Vector3();
+const targetVelocity = new THREE.Vector3();
 let verticalVel = 0;
 let facingYaw=0, animT=0, moving=false, isGrounded=true;
+let targetYaw = 0;
 const clock=new THREE.Clock();
+
+// Camera smoothing variables
+const currentCameraPos = new THREE.Vector3();
+const currentLookAt = new THREE.Vector3();
 
 function applyWalk(t,spd){
   if(swinging) return;
@@ -908,31 +989,48 @@ function animate(){
   const dt=Math.min(clock.getDelta(),.05);
 
   const running=keys['ShiftLeft']||keys['ShiftRight'];
-  const speed=running?25:3.8;
+  const speed=running?18:7.5; // Adjusted for better feel
+  const acceleration = running ? 10 : 15;
+  const friction = 12;
+
   moving=false;
   const dir=new THREE.Vector3();
   if(keys['KeyW']){dir.z-=1;moving=true;}
   if(keys['KeyS']){dir.z+=1;moving=true;}
   if(keys['KeyA']){dir.x-=1;moving=true;}
   if(keys['KeyD']){dir.x+=1;moving=true;}
+
   if (dir.length() > 0) {
     const camDir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).setY(0).normalize();
     const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).setY(0).normalize();
     
     const moveVec = camDir.multiplyScalar(-dir.z).add(camRight.multiplyScalar(dir.x)).normalize();
-    velocity.copy(moveVec).multiplyScalar(speed);
-    facingYaw = Math.atan2(velocity.x, velocity.z);
-  } else { velocity.set(0, 0, 0); }
+    targetVelocity.copy(moveVec).multiplyScalar(speed);
+    targetYaw = Math.atan2(moveVec.x, moveVec.z);
+  } else { 
+    targetVelocity.set(0, 0, 0); 
+  }
+
+  // Smooth Velocity Lerping
+  const lerpFactor = targetVelocity.lengthSq() > 0 ? acceleration : friction;
+  velocity.lerp(targetVelocity, lerpFactor * dt);
+
+  // Smooth Rotation Lerping (Shortest Path)
+  let yawDiff = targetYaw - facingYaw;
+  while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
+  while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
+  facingYaw += yawDiff * 10 * dt;
 
   if(keys['Space'] && isGrounded){
-    verticalVel = 16;
+    verticalVel = 14;
     isGrounded = false;
   }
 
   playerPos.addScaledVector(velocity, dt);
   checkRuinCollision(playerPos, 0.8);
-
-  verticalVel -= 45 * dt;
+  
+  // Gravity and Grounding
+  verticalVel -= 35 * dt;
   playerPos.y += verticalVel * dt;
   const groundH = Math.max(getH(playerPos), 0);
   if (playerPos.y <= groundH) {
@@ -951,27 +1049,34 @@ function animate(){
   updateGoblins(dt, playerPos);
   updateEnvironment(dt);
 
+  // Smooth Camera Logic
   const camOffset = new THREE.Vector3(Math.sin(camYaw)*Math.cos(camPitch)*camDist, Math.sin(camPitch)*camDist, Math.cos(camYaw)*Math.cos(camPitch)*camDist);
-  const targetCamPos = playerPos.clone().add(camOffset);
+  let desiredCamPos = playerPos.clone().add(camOffset);
   const lookAtPos = new THREE.Vector3(playerPos.x, playerPos.y + 1.2, playerPos.z);
-  const camRayDir = new THREE.Vector3().subVectors(targetCamPos, lookAtPos).normalize();
+  
+  const camRayDir = new THREE.Vector3().subVectors(desiredCamPos, lookAtPos).normalize();
   camRaycaster.set(lookAtPos, camRayDir);
   camRaycaster.far = camDist;
   const camHits = camRaycaster.intersectObjects(staticObjects, true);
+  
   if (camHits.length > 0) {
-    camera.position.copy(camHits[0].point).addScaledVector(camRayDir, -0.2);
-  } else {
-    camera.position.copy(targetCamPos);
+    desiredCamPos.copy(camHits[0].point).addScaledVector(camRayDir, -0.5);
   }
+
+  // Interpolate camera for smooth transitions during occlusion or movement
+  currentCameraPos.lerp(desiredCamPos, 0.15);
+  currentLookAt.lerp(lookAtPos, 0.15);
+
+  camera.position.copy(currentCameraPos);
   camera.up.set(0, 1, 0);
-  camera.lookAt(lookAtPos);
+  camera.lookAt(currentLookAt);
   renderer.render(scene, camera);
 }
-
+Object.assign(sun.shadow.camera,{far:MAP_SIZE*2,left:-MAP_SIZE*.75,right:MAP_SIZE*.75,top:MAP_SIZE*.75,bottom:-MAP_SIZE*.75});
 window.addEventListener('resize',()=>{
-  camera.aspect=innerWidth/innerHeight;
+  camera.aspect=window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth,innerHeight);
+  renderer.setSize(window.innerWidth,window.innerHeight);
 });
 
 animate();
