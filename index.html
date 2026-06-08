@@ -7,36 +7,9 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #000; overflow: hidden; font-family: monospace; }
   canvas { display: block; cursor: crosshair; }
-  #action-hint {
-    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-    color: rgba(180,160,255,0.8); font-size: 13px; letter-spacing: 0.12em;
-    text-transform: uppercase; pointer-events: none;
-    text-shadow: 0 1px 6px rgba(100,60,255,0.9);
-    transition: opacity 0.4s;
-  }
-  #crosshair {
-    position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
-    width: 16px; height: 16px; pointer-events: none;
-  }
-  #crosshair::before, #crosshair::after {
-    content:''; position:absolute; background:rgba(255,50,50,0.5);
-  }
-  #crosshair::before { width:1px; height:100%; left:50%; top:0; }
-  #crosshair::after  { width:100%; height:1px; top:50%; left:0; }
-  #charge-ring {
-    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-    width:40px; height:40px; border-radius:50%;
-    border: 2px solid rgba(120,80,255,0);
-    pointer-events:none; transition: border-color 0.1s;
-    box-shadow: 0 0 0 0 rgba(120,80,255,0);
-  }
 </style>
 </head>
 <body>
-<div id="action-hint">staff sheathed</div>
-<div id="crosshair"></div>
-<div id="charge-ring"></div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -44,41 +17,48 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
 document.body.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x050508);
-scene.fog = new THREE.FogExp2(0x050508, 0.018);
-const camera = new THREE.PerspectiveCamera(65, innerWidth/innerHeight, 0.1, 500);
-const ambient = new THREE.AmbientLight(0x1a1a2e, 0.2);
+scene.background = new THREE.Color(0x101018);
+const camera = new THREE.PerspectiveCamera(65, innerWidth/innerHeight, 0.1, 10000);
+const staticObjects = [];
+const camRaycaster = new THREE.Raycaster();
+const ambient = new THREE.AmbientLight(0x504840, 0.5);
 scene.add(ambient);
 
-const sun = new THREE.DirectionalLight(0xffccaa, 0.6);
+const hemiLight = new THREE.HemisphereLight(0xffccaa, 0x403020, 0.6);
+scene.add(hemiLight);
+
+const sun = new THREE.DirectionalLight(0xff9944, 0.6);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048,2048);
-Object.assign(sun.shadow.camera,{far:300,left:-120,right:120,top:120,bottom:-120});
+Object.assign(sun.shadow.camera,{far:20000,left:-3000,right:3000,top:3000,bottom:-3000});
 scene.add(sun);
 
+const sunVisual = new THREE.Mesh(new THREE.SphereGeometry(120, 32, 32), new THREE.MeshBasicMaterial({color: 0xffaa00}));
+scene.add(sunVisual);
+
 const moon = new THREE.DirectionalLight(0xaaaaff, 0.2);
-moon.castShadow = false; // Moon shadows are expensive, disabling for performance
+moon.castShadow = false;
 scene.add(moon);
 
 const fill=new THREE.DirectionalLight(0x443366,0.2); fill.position.set(-40,20,-20); scene.add(fill);
 
-// ── Day/Night State ───────────────────────────────────────────────────────────
-let gameTime = 6; // Starts at 6 AM
+let gameTime = 12;
+const MAP_SIZE = 4000;
+const MAP_HALF = MAP_SIZE / 2;
 const starGeo = new THREE.BufferGeometry();
 const starPos = [];
 for(let i=0; i<3000; i++) {
-  const x = (Math.random()-0.5)*1000;
-  const y = 40 + Math.random()*150;
-  const z = (Math.random()-0.5)*1000;
-  starPos.push(x,y,z);
+  const v = getRandomDir().multiplyScalar(8000 + Math.random() * 2000);
+  starPos.push(v.x, v.y, v.z);
 }
 starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
 const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color:0xffffff, size:0.4, transparent:true, opacity:0}));
 scene.add(stars);
 
-// ── Procedural Soft Texture for Atmospheric Effects ──────────────────────────
 function createSoftTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = 64; canvas.height = 64;
@@ -92,204 +72,330 @@ function createSoftTexture() {
 }
 const softTex = createSoftTexture();
 
-// ── Clouds & Mist ─────────────────────────────────────────────────────────────
-const clouds = new THREE.Group();
-const cloudMat = new THREE.MeshLambertMaterial({ map: softTex, transparent: true, opacity: 0.6, depthWrite: false });
-for(let i=0; i<30; i++) {
-  const cg = new THREE.Group();
-  const count = 6 + Math.random()*6;
-  for(let j=0; j<count; j++) {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(15, 15), cloudMat);
-    m.position.set((Math.random()-0.5)*25, (Math.random()-0.5)*8, (Math.random()-0.5)*25);
-    m.rotation.z = Math.random() * Math.PI;
-    cg.add(m);
-  }
-  cg.position.set((Math.random()-0.5)*400, 50+Math.random()*30, (Math.random()-0.5)*400);
-  cg.userData.speed = 0.2 + Math.random()*0.8;
-  clouds.add(cg);
-}
-scene.add(clouds);
-
-const mist = new THREE.Group();
-const mistMat = new THREE.MeshLambertMaterial({ map: softTex, transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide });
-for(let i=0; i<150; i++) {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(12, 12), mistMat);
-  const mx = (Math.random()-0.5)*250;
-  const mz = (Math.random()-0.5)*250;
-  m.position.set(mx, getH(mx, mz) + 1, mz);
-  m.rotation.x = -Math.PI/2;
-  m.userData.phase = Math.random() * Math.PI * 2;
-  mist.add(m);
-}
-scene.add(mist);
-
 function updateEnvironment(dt) {
-  gameTime = (gameTime + dt / 60) % 24; // 1 hour = 1 minute real time
+  gameTime = (gameTime + dt / 60) % 24;
   const dayAngle = ((gameTime - 6) / 24) * Math.PI * 2;
   const sunUp = Math.sin(dayAngle);
   const dusk = Math.max(0, 1 - Math.abs(sunUp) * 5);
   
-  sun.position.set(Math.cos(dayAngle)*180, Math.sin(dayAngle)*180, 50);
-  moon.position.set(Math.cos(dayAngle + Math.PI)*180, Math.sin(dayAngle + Math.PI)*180, -50);
+  const sunDist = 15000;
+  sun.position.set(Math.cos(dayAngle)*sunDist, Math.sin(dayAngle)*sunDist, 0);
+  sunVisual.position.copy(sun.position);
+  moon.position.set(Math.cos(dayAngle + Math.PI)*sunDist, Math.sin(dayAngle + Math.PI)*sunDist, 0);
 
-  sun.intensity = Math.max(0, sunUp) * 1.5;
-  moon.intensity = Math.max(0, -sunUp) * 0.4;
-  ambient.intensity = 0.2 + Math.max(0, sunUp) * 0.5;
+  sun.intensity = Math.max(0, sunUp) * 2.2;
+  moon.intensity = Math.max(0, -sunUp) * 0.5;
+  ambient.intensity = 0.4 + Math.max(0, sunUp) * 0.5;
+  hemiLight.intensity = 0.4 + Math.max(0, sunUp) * 0.5;
   stars.material.opacity = Math.max(0, -sunUp);
 
-  // Dynamic cloud/mist coloring
-  const cloudCol = new THREE.Color(0x111115).lerp(new THREE.Color(0xddddff), Math.max(0, sunUp));
-  if(dusk > 0) cloudCol.lerp(new THREE.Color(0xffaa44), dusk);
-  cloudMat.color.copy(cloudCol);
-  mistMat.color.copy(cloudCol);
-  mistMat.opacity = (0.15 + dusk * 0.2) * (sunUp < 0 ? 0.5 : 1.0);
-
-  mist.children.forEach(m => {
-    m.position.y += Math.sin(Date.now()*0.001 + m.userData.phase) * 0.005;
-  });
-
-  const skyCol = new THREE.Color(0x050508).lerp(new THREE.Color(0x405060), Math.max(0, sunUp));
-  if(Math.abs(sunUp) < 0.2) skyCol.lerp(new THREE.Color(0x4a3a2a), 1 - Math.abs(sunUp)*5); // Dawn/Dusk tint
+  const skyCol = new THREE.Color(0x151520).lerp(new THREE.Color(0xc0a080), Math.max(0, sunUp));
+  if(Math.abs(sunUp) < 0.2) skyCol.lerp(new THREE.Color(0x4a3a2a), 1 - Math.abs(sunUp)*5);
   scene.background = skyCol;
-  scene.fog.color = skyCol;
-
-  clouds.children.forEach(c => {
-    c.position.x += c.userData.speed * dt * 3;
-    if(c.position.x > 300) c.position.x = -300;
-    c.lookAt(camera.position); // Billboarding
-  });
   stars.rotation.y += dt * 0.005;
 }
 
-function getH(x,z){
-  const d=Math.sqrt(x*x+z*z), blend=Math.max(0,Math.min(1,(d-14)/18));
-  return(Math.sin(x*.04)*Math.cos(z*.04)*6+Math.sin(x*.08+1.2)*Math.cos(z*.07)*3+Math.sin(x*.02-.5)*Math.cos(z*.015+.8)*8)*blend;
+function getRandomDir() {
+  const v = new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1);
+  if (v.lengthSq() < 0.001) return getRandomDir();
+  return v.normalize();
 }
-const tGeo=new THREE.PlaneGeometry(300,300,90,90); tGeo.rotateX(-Math.PI/2);
-const tp=tGeo.attributes.position;
-for(let i=0;i<tp.count;i++) tp.setY(i,getH(tp.getX(i),tp.getZ(i)));
-tGeo.computeVertexNormals();
-const terrain=new THREE.Mesh(tGeo,new THREE.MeshLambertMaterial({color:0x1a211a}));
-terrain.receiveShadow=true; scene.add(terrain);
-const GRASS_COUNT=120000;
-const gMesh=new THREE.InstancedMesh(new THREE.PlaneGeometry(.12,.6),new THREE.MeshLambertMaterial({color:0x223322,side:THREE.DoubleSide}),GRASS_COUNT);
-scene.add(gMesh);
-const _d=new THREE.Object3D();
-for(let i=0;i<GRASS_COUNT;i++){
-  const gx=(Math.random()-.5)*260,gz=(Math.random()-.5)*260;
-  _d.position.set(gx,getH(gx,gz)+.3,gz);
-  _d.rotation.set((Math.random()-.5)*.3,Math.random()*Math.PI,0);
-  _d.scale.set(1,.6+Math.random()*.9,1);
-  _d.updateMatrix(); gMesh.setMatrixAt(i,_d.matrix);
-  gMesh.setColorAt(i,new THREE.Color().setHSL(.26+Math.random()*.08,.4+Math.random()*.2,.1+Math.random()*.1));
-}
-gMesh.instanceMatrix.needsUpdate=true;
-if(gMesh.instanceColor) gMesh.instanceColor.needsUpdate=true;
-function makeTree(x,z){
-  const gh=getH(x,z), g=new THREE.Group();
-  const type=Math.random();
 
-  if(type<0.5){
-    const th=4+Math.random()*3;
-    const barkM=new THREE.MeshLambertMaterial({color:new THREE.Color().setHSL(.07,.4,.08+Math.random()*.05)});
-    const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.1,.28,th,8),barkM);
-    trunk.position.y=th/2; trunk.castShadow=true; g.add(trunk);
-    for(let r=0;r<3;r++){
-      const ring=new THREE.Mesh(new THREE.CylinderGeometry(.29+r*.01,.29+r*.01,.06,8),barkM);
-      ring.position.y=.4+r*(th*.28); g.add(ring);
-    }
-    const layers=5+Math.floor(Math.random()*3);
-    for(let l=0;l<layers;l++){
-      const pct=l/layers;
-      const radius=(.22+(1-pct)*1.9)*(1+Math.random()*.15);
-      const height=1.4+Math.random()*.4;
-      const fCol=new THREE.Color().setHSL(.28+Math.random()*.05,.6,.12+Math.random()*.08);
-      const fMat=new THREE.MeshLambertMaterial({color:fCol});
-      const cone=new THREE.Mesh(new THREE.ConeGeometry(radius,height,8),fMat);
-      cone.position.y=th*.45+pct*(th*.6);
-      cone.rotation.y=Math.random()*Math.PI;
-      cone.castShadow=true; g.add(cone);
-      if(l<layers-1){
-        for(let b=0;b<3;b++){
-          const ang=b*(Math.PI*2/3)+Math.random()*.4;
-          const br=new THREE.Mesh(new THREE.CylinderGeometry(.025,.04,.5,5),barkM);
-          br.position.set(Math.sin(ang)*radius*.5, cone.position.y-.2, Math.cos(ang)*radius*.5);
-          br.rotation.z=Math.PI/2-Math.random()*.3;
-          br.rotation.y=ang; g.add(br);
+const terrainOffset = new THREE.Vector3(Math.random() * 1e5, 0, Math.random() * 1e5);
+function getH(pos) {
+  const tx = pos.x + terrainOffset.x, tz = pos.z + terrainOffset.z;
+  
+  let h = (Math.sin(tx * 0.01) * Math.cos(tz * 0.01) * 8 + Math.sin(tz * 0.02) * 6);
+  
+  let mNoise = Math.sin(tx * 0.012) * Math.sin(tz * 0.012);
+  mNoise += (Math.sin(tx * 0.05) * Math.sin(tz * 0.05)) * 0.12;
+  if (mNoise > 0.15) h += Math.pow((mNoise - 0.15) * 1.5, 1.8) * 100;
+  
+  const rNoise = Math.sin(tx * 0.008 + tz * 0.008) * Math.cos(tz * 0.008);
+  if (Math.abs(rNoise) < 0.04) h -= (0.04 - Math.abs(rNoise)) * 550;
+
+  const bDist = Math.max(Math.abs(pos.x), Math.abs(pos.z));
+  if (bDist > 1400) h += Math.pow((bDist - 1400) / 600, 2) * 600;
+
+  const sDistSq = pos.x * pos.x + pos.z * pos.z;
+  if (sDistSq < 10000) {
+    const sFactor = 1.0 - Math.sqrt(sDistSq) / 100;
+    h = Math.max(h, 1.0 + sFactor * 12);
+  }
+
+  return h;
+}
+const tGeo = new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE, 512, 512);
+tGeo.rotateX(-Math.PI / 2);
+const tp=tGeo.attributes.position;
+const _v = new THREE.Vector3();
+const colors = [];
+for(let i=0;i<tp.count;i++) {
+  _v.fromBufferAttribute(tp, i);
+  const h = getH(_v);
+  tp.setY(i, h);
+  const c = new THREE.Color();
+  if (h > 100) c.setHex(0xffffff);
+  else if (h > 60) c.setHex(0x888888);
+  else if (h < -2) c.setHex(0x3a4a3a);
+  else c.setHex(0x5a7a5a);
+  colors.push(c.r, c.g, c.b);
+}
+tGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+tp.needsUpdate = true;
+tGeo.computeVertexNormals();
+const terrain=new THREE.Mesh(tGeo,new THREE.MeshLambertMaterial({vertexColors: true}));
+terrain.receiveShadow=true; scene.add(terrain);
+staticObjects.push(terrain);
+
+const waterGeo = new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE);
+waterGeo.rotateX(-Math.PI / 2);
+const water = new THREE.Mesh(waterGeo, new THREE.MeshLambertMaterial({color: 0x153565, transparent: true, opacity: 0.7}));
+water.position.y = -0.5;
+scene.add(water);
+
+const GRASS_COUNT = 1000000;
+const gGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.75, 3, 1, true);
+const gMat = new THREE.MeshLambertMaterial({color: 0x5a7a5a, side: THREE.DoubleSide});
+const gMesh = new THREE.InstancedMesh(gGeo, gMat, GRASS_COUNT);
+scene.add(gMesh);
+
+const _d = new THREE.Object3D();
+for (let i = 0; i < GRASS_COUNT; i++) {
+  const gx = (Math.random() - 0.5) * MAP_SIZE;
+  const gz = (Math.random() - 0.5) * MAP_SIZE;
+  const h = getH({ x: gx, z: gz });
+  if (h < 0.5 || h > 40 || (Math.abs(gx) < 12 && Math.abs(gz) < 12)) {
+    _d.scale.set(0,0,0);
+  } else {
+    _d.position.set(gx, h, gz);
+    _d.quaternion.set(0, 0, 0, 1);
+    _d.rotateY(Math.random() * Math.PI);
+    _d.scale.set(1, 0.7 + Math.random() * 0.7, 1);
+    gMesh.setColorAt(i, new THREE.Color().setHSL(.25 + Math.random() * 0.05, .4, .08 + Math.random() * 0.08));
+  }
+  _d.updateMatrix();
+  gMesh.setMatrixAt(i, _d.matrix);
+}
+gMesh.instanceMatrix.needsUpdate = true;
+if(gMesh.instanceColor) gMesh.instanceColor.needsUpdate = true;
+
+const ruins = [];
+function checkRuinCollision(pos, radius) {
+  for (const r of ruins) {
+    const distToCenter = pos.distanceTo(r.pos);
+    if (distToCenter < 25) {
+      for (const p of r.parts) {
+        const d = pos.distanceTo(p.world);
+        const minDist = p.rad + radius;
+        if (d < minDist) {
+          const push = new THREE.Vector3().subVectors(pos, p.world).setY(0);
+          const up = new THREE.Vector3(0, 1, 0);
+          push.projectOnPlane(up).normalize();
+          pos.addScaledVector(push, minDist - d);
         }
       }
     }
-    const tip=new THREE.Mesh(new THREE.ConeGeometry(.08,.4,6),new THREE.MeshLambertMaterial({color:new THREE.Color().setHSL(.3,.6,.15)}));
-    tip.position.y=th*.45+(th*.6)+.3; g.add(tip);
+  }
+}
+function makeCastleRuin(spawnPos) {
+  const h = getH(spawnPos);
+  const stoneM = new THREE.MeshLambertMaterial({color:0x555555});
+  const ruinCenter = new THREE.Vector3(spawnPos.x, h, spawnPos.z);
+  const radius = 14, walls = 22, rData = { pos: ruinCenter.clone(), parts: [] };
 
-  } else if(type<0.82){
-    const th=3+Math.random()*2.5;
-    const barkCol=new THREE.Color().setHSL(.07,.35,.15+Math.random()*.1);
-    const barkM=new THREE.MeshLambertMaterial({color:barkCol});
-    const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.14,.32,th,9),barkM);
-    trunk.position.y=th/2; trunk.castShadow=true; g.add(trunk);
-    for(let r=0;r<4;r++){
-      const ang=r*Math.PI/2+Math.random()*.3;
-      const root=new THREE.Mesh(new THREE.CylinderGeometry(.04,.12,.6,5),barkM);
-      root.position.set(Math.sin(ang)*.28,0.2,Math.cos(ang)*.28);
-      root.rotation.z=Math.sin(ang)*.5; root.rotation.x=Math.cos(ang)*.5;
-      g.add(root);
-    }
-    const numBranches=3+Math.floor(Math.random()*3);
-    for(let b=0;b<numBranches;b++){
-      const ang=b*(Math.PI*2/numBranches)+Math.random()*.5;
-      const bh=.5+Math.random()*.8;
-      const branch=new THREE.Mesh(new THREE.CylinderGeometry(.04,.09,bh,5),barkM);
-      branch.position.set(Math.sin(ang)*.3,th*.7+Math.random()*.4,Math.cos(ang)*.3);
-      branch.rotation.z=Math.sin(ang)*.7; branch.rotation.x=Math.cos(ang)*.7;
-      branch.castShadow=true; g.add(branch);
-    }
-    const fCol=new THREE.Color().setHSL(.3+Math.random()*.05,.55,.22+Math.random()*.12);
-    const fMat=new THREE.MeshLambertMaterial({color:fCol});
-    const fCol2=new THREE.Color().setHSL(.27+Math.random()*.04,.6,.18+Math.random()*.1);
-    const fMat2=new THREE.MeshLambertMaterial({color:fCol2});
-    const mainBlob=new THREE.Mesh(new THREE.SphereGeometry(1.6+Math.random()*.5,8,6),fMat);
-    mainBlob.scale.y=0.75+Math.random()*.2;
-    mainBlob.position.y=th*.85; mainBlob.castShadow=true; g.add(mainBlob);
-    for(let c=0;c<5+Math.floor(Math.random()*4);c++){
-      const ang=Math.random()*Math.PI*2, rad=.8+Math.random()*.8;
-      const sz=.7+Math.random()*.7;
-      const blob=new THREE.Mesh(new THREE.SphereGeometry(sz,7,5),Math.random()<.5?fMat:fMat2);
-      blob.position.set(Math.sin(ang)*rad, th*.75+Math.random()*.8, Math.cos(ang)*rad);
-      blob.scale.y=0.7+Math.random()*.4;
-      blob.castShadow=true; g.add(blob);
-    }
-
-  } else {
-    const th=4.5+Math.random()*2;
-    const barkM=new THREE.MeshLambertMaterial({color:0xddd8cc});
-    const darkM=new THREE.MeshLambertMaterial({color:0x888070});
-    const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.1,.18,th,7),barkM);
-    trunk.position.y=th/2; trunk.castShadow=true; g.add(trunk);
-    for(let r=0;r<5;r++){
-      const band=new THREE.Mesh(new THREE.CylinderGeometry(.185,.185,.05,7),darkM);
-      band.position.y=.5+r*(th/5.5); g.add(band);
-    }
-    const fMat=new THREE.MeshLambertMaterial({color:new THREE.Color().setHSL(.32+Math.random()*.04,.5,.28+Math.random()*.1)});
-    for(let c=0;c<8+Math.floor(Math.random()*5);c++){
-      const ang=Math.random()*Math.PI*2, rad=.3+Math.random()*1.1, ht=th*.55+Math.random()*th*.4;
-      const sz=.4+Math.random()*.7;
-      const blob=new THREE.Mesh(new THREE.SphereGeometry(sz,6,5),fMat);
-      blob.scale.set(1+Math.random()*.4,.6+Math.random()*.3,1+Math.random()*.4);
-      blob.position.set(Math.sin(ang)*rad,ht,Math.cos(ang)*rad);
-      blob.castShadow=true; g.add(blob);
+  function place(lx, lz, geo, rotY, collRad=0){
+    const itemX = ruinCenter.x + lx, itemZ = ruinCenter.z + lz;
+    const ph = getH({x: itemX, z: itemZ});
+    const itemSurface = new THREE.Vector3(itemX, ph, itemZ);
+    const mesh = new THREE.Mesh(geo, stoneM);
+    mesh.castShadow = true;
+    mesh.position.copy(itemSurface).y += geo.parameters.height / 2;
+    mesh.rotation.y = rotY;
+    mesh.rotateY(rotY);
+    scene.add(mesh);
+    staticObjects.push(mesh);
+    if(collRad > 0) rData.parts.push({ world: itemSurface.clone(), rad: collRad });
+    return mesh;
+  }
+  
+  for(let i=0; i<walls; i++){
+    const ang = (i/walls) * Math.PI * 2;
+    const lx = Math.sin(ang)*radius, lz = Math.cos(ang)*radius;
+    if(Math.random() > 0.3){
+      const wh = 2 + Math.random() * 7;
+      place(lx, lz, new THREE.BoxGeometry(5, wh, 2), ang, 2.8);
+      if(Math.random() > 0.6){
+        const dx = Math.sin(ang)*(radius+4), dz = Math.cos(ang)*(radius+4);
+        const m = place(dx, dz, new THREE.BoxGeometry(0.8, 0.8, 0.8), 0, 0);
+        m.rotation.set(Math.random(), Math.random(), Math.random());
+      }
     }
   }
+  
+  for(let i=0; i<4; i++){
+    const ang = i * (Math.PI/2);
+    const lx = Math.sin(ang)*radius, lz = Math.cos(ang)*radius, th = 9 + Math.random() * 6;
+    place(lx, lz, new THREE.CylinderGeometry(2.5, 3, th, 8), 0, 3.5);
+  }
 
-  g.position.set(x,gh,z);
-  g.rotation.y=Math.random()*Math.PI*2;
-  g.rotation.z=(Math.random()-.5)*.04;
-  scene.add(g);
+  const kh = 14 + Math.random() * 8;
+  place(0, 0, new THREE.BoxGeometry(7, kh, 7), 0, 5.5);
+  ruins.push(rData);
 }
-for(let i=0;i<220;i++){
-  let x,z; do{x=(Math.random()-.5)*240;z=(Math.random()-.5)*240;}while(Math.sqrt(x*x+z*z)<12);
-  makeTree(x,z);
+const treeTemplate = (() => {
+  const g = new THREE.Group();
+  const th = 13;
+  const barkM = new THREE.MeshLambertMaterial({color: new THREE.Color().setHSL(.07, .4, .1)});
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.25, .55, th, 8), barkM);
+  trunk.position.y = th / 2; trunk.castShadow = true; g.add(trunk);
+  for(let r=0;r<3;r++){
+    const ring=new THREE.Mesh(new THREE.CylinderGeometry(.7+r*.02,.7+r*.02,.12,8),barkM);
+    ring.position.y=.4+r*(th*.25); g.add(ring);
+  }
+  const layers = 6;
+  for(let l=0;l<layers;l++){
+    const pct=l/layers;
+    const radius=(.5+(1-pct)*4)*1.1;
+    const height=3.5;
+    const fMat=new THREE.MeshLambertMaterial({color:new THREE.Color().setHSL(.28, .6, .15)});
+    const cone=new THREE.Mesh(new THREE.ConeGeometry(radius,height,8),fMat);
+    cone.position.y=th*.45+pct*(th*.6);
+    cone.castShadow=true; g.add(cone);
+    if(l<layers-1){
+      for(let b=0;b<3;b++){
+        const ang=b*(Math.PI*2/3);
+        const br=new THREE.Mesh(new THREE.CylinderGeometry(.025,.04,.5,5),barkM);
+        br.position.set(Math.sin(ang)*radius*.5, cone.position.y-.5, Math.cos(ang)*radius*.5);
+        br.rotation.z=Math.PI/2-0.2;
+        br.rotation.y=ang; g.add(br);
+      }
+    }
+  }
+  const tip=new THREE.Mesh(new THREE.ConeGeometry(.18,.9,6),new THREE.MeshLambertMaterial({color:new THREE.Color().setHSL(.3, .6, .15)}));
+  tip.position.y=th*.45+(th*.6)+.2; g.add(tip);
+  g.updateMatrixWorld(true);
+  return g;
+})();
+
+const TREE_COUNT = 15000;
+const treeMatrices = [];
+const _tObj = new THREE.Object3D();
+const _tMat = new THREE.Matrix4();
+
+for (let i = 0; i < TREE_COUNT; i++) {
+  let tx, tz, th;
+  do {
+    tx = (Math.random() - 0.5) * MAP_SIZE;
+    tz = (Math.random() - 0.5) * MAP_SIZE;
+    th = getH({ x: tx, z: tz });
+  } while (Math.abs(tx) < 40 && Math.abs(tz) < 40 || th < 2 || th > 25);
+
+  _tObj.position.set(tx, th, tz);
+  _tObj.quaternion.set(0, 0, 0, 1);
+  _tObj.rotateY(Math.random() * Math.PI * 2);
+  _tObj.updateMatrix();
+  treeMatrices.push(_tObj.matrix.clone());
 }
+
+treeTemplate.traverse(child => {
+  if (child.isMesh) {
+    const inst = new THREE.InstancedMesh(child.geometry, child.material, TREE_COUNT);
+    inst.castShadow = true;
+    inst.receiveShadow = true;
+    for (let i = 0; i < TREE_COUNT; i++) {
+      inst.setMatrixAt(i, _tMat.copy(treeMatrices[i]).multiply(child.matrix));
+    }
+    scene.add(inst);
+  }
+});
+
+const CLOUD_COUNT = 1000;
+const cGeo = new THREE.PlaneGeometry(2, 2);
+cGeo.rotateX(-Math.PI / 2);
+const cMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.7, map: softTex, depthWrite: false, side: THREE.DoubleSide });
+const cMesh = new THREE.InstancedMesh(cGeo, cMat, CLOUD_COUNT);
+cMesh.frustumCulled = false;
+scene.add(cMesh);
+
+const _cObj = new THREE.Object3D();
+for (let i = 0; i < CLOUD_COUNT; i++) {
+  const ang = Math.random() * Math.PI * 2;
+  const rad = 1450 + Math.random() * 500;
+  const cx = Math.cos(ang) * rad;
+  const cz = Math.sin(ang) * rad;
+  const cy = 600 + Math.random() * 600;
+  _cObj.position.set(cx, cy, cz);
+  const s = 400 + Math.random() * 400;
+  _cObj.scale.set(s, s * 0.4, s);
+  _cObj.updateMatrix();
+  cMesh.setMatrixAt(i, _cObj.matrix);
+}
+cMesh.instanceMatrix.needsUpdate = true;
+
+for (let i = 0; i < 60; i++) {
+  let cx, cz, ch, slope;
+  do {
+    cx = (Math.random() - 0.5) * MAP_SIZE;
+    cz = (Math.random() - 0.5) * MAP_SIZE;
+    ch = getH({ x: cx, z: cz });
+    const d = 4;
+    const s1 = Math.abs(getH({ x: cx + d, z: cz }) - getH({ x: cx - d, z: cz })) / (d * 2);
+    const s2 = Math.abs(getH({ x: cx, z: cz + d }) - getH({ x: cx, z: cz - d })) / (d * 2);
+    slope = Math.max(s1, s2);
+  } while (Math.abs(cx) < 60 && Math.abs(cz) < 60 || ruins.some(r => r.pos.distanceTo(new THREE.Vector3(cx, 0, cz)) < 55) || ch < 5 || slope > 0.15);
+  makeCastleRuin({ x: cx, z: cz });
+}
+
+function makeTavern(pos) {
+  const h = getH(pos);
+  const woodM = new THREE.MeshLambertMaterial({color: 0x4a2e19});
+  const stoneM = new THREE.MeshLambertMaterial({color: 0x666666});
+  const group = new THREE.Group();
+  group.position.set(pos.x, h, pos.z);
+  scene.add(group);
+
+  // Foundation/Floor
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(16, 0.6, 16), stoneM);
+  floor.position.y = 0.3; floor.receiveShadow = true; group.add(floor);
+  staticObjects.push(floor);
+
+  // Walls
+  const wallH = 7;
+  const wall = (x, z, w, d) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, wallH, d), woodM);
+    m.position.set(x, wallH/2 + 0.6, z); m.castShadow = true; group.add(m);
+    staticObjects.push(m);
+  };
+  wall(0, -7.7, 16, 0.6); // Back
+  wall(-7.7, 0, 0.6, 16); // Left
+  wall(7.7, 0, 0.6, 16);  // Right
+  wall(-5, 7.7, 6, 0.6);  // Front Left
+  wall(5, 7.7, 6, 0.6);   // Front Right (Doorway in middle)
+
+  // Roof
+  const roofL = new THREE.Mesh(new THREE.BoxGeometry(12, 0.5, 18), stoneM);
+  roofL.position.set(-4.5, wallH + 2.5, 0); roofL.rotation.z = 0.6; group.add(roofL);
+  const roofR = new THREE.Mesh(new THREE.BoxGeometry(12, 0.5, 18), stoneM);
+  roofR.position.set(4.5, wallH + 2.5, 0); roofR.rotation.z = -0.6; group.add(roofR);
+  staticObjects.push(roofL, roofR);
+
+  // Cozy interior light
+  const tLight = new THREE.PointLight(0xffaa44, 2.5, 20);
+  tLight.position.set(0, 5, 0); group.add(tLight);
+
+  // Add wall collisions
+  const rData = { pos: group.position.clone(), parts: [] };
+  for(let t = -8; t <= 8; t += 2) {
+    rData.parts.push({ world: new THREE.Vector3(pos.x - 7.7, h, pos.z + t), rad: 1 });
+    rData.parts.push({ world: new THREE.Vector3(pos.x + 7.7, h, pos.z + t), rad: 1 });
+    rData.parts.push({ world: new THREE.Vector3(pos.x + t, h, pos.z - 7.7), rad: 1 });
+    if (Math.abs(t) > 2.5) rData.parts.push({ world: new THREE.Vector3(pos.x + t, h, pos.z + 7.7), rad: 1 });
+  }
+  ruins.push(rData);
+}
+makeTavern({x: 0, z: 0});
+
 const skinM  = new THREE.MeshLambertMaterial({color:0xf0c8a0});
 const robeM  = new THREE.MeshLambertMaterial({color:0x555555});
 const robeAccM = new THREE.MeshLambertMaterial({color:0x444444});
@@ -297,22 +403,25 @@ const shoeM  = new THREE.MeshLambertMaterial({color:0x1a1212});
 const hatM   = new THREE.MeshLambertMaterial({color:0x444444});
 const hatBrimM = new THREE.MeshLambertMaterial({color:0x333333});
 const staffWoodM = new THREE.MeshLambertMaterial({color:0x3d2b1f});
-const crystalM = new THREE.MeshLambertMaterial({color:0xff66cc,emissive:0x881166,emissiveIntensity:0.8});
+const crystalM = new THREE.MeshLambertMaterial({color:0x66ccff,emissive:0x116688,emissiveIntensity:0.8});
 const beardM = new THREE.MeshLambertMaterial({color:0xeeeeee});
 
 function bx(w,h,d,m){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.castShadow=true;return o;}
 function cy(r,h,m,s=8){const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,s),m);o.castShadow=true;return o;}
 function cone(rb,rt,h,m,s=8){const o=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,s),m);o.castShadow=true;return o;}
+function sp(r,m,s=12){const o=new THREE.Mesh(new THREE.SphereGeometry(r,s,s),m);o.castShadow=true;return o;}
 const char = new THREE.Group(); scene.add(char);
+const playerLight = new THREE.PointLight(0xff9944, 1.5, 30);
+playerLight.position.set(0, 2, 0);
+char.add(playerLight);
 const torso = cone(.28, .36, .65, robeM); torso.position.y=1.1; char.add(torso);
 const hips  = cone(.55, .28, .8, robeM); hips.position.y=.7; char.add(hips);
-const head  = bx(.3,.3,.28,skinM); head.position.y=1.54; char.add(head);
+const head  = sp(.18,skinM); head.position.y=1.54; char.add(head);
 const neck  = cy(.072,.12,skinM); neck.position.y=1.38; char.add(neck);
-const beard = cone(.16, .02, .75, beardM, 6); beard.position.set(0, 1.25, .12); beard.rotation.x = -0.15; char.add(beard);
+const beard = cone(.02, .22, .75, beardM, 6); beard.position.set(0, 1.22, .12); beard.rotation.x = -0.15; char.add(beard);
 const hatGroup = new THREE.Group(); hatGroup.position.y=1.54; char.add(hatGroup);
 const brim = new THREE.Mesh(new THREE.CylinderGeometry(.38,.38,.04,16),hatBrimM); brim.position.y=.17; hatGroup.add(brim);
 const hatCone = cone(.26,.04,0.85,hatM,12); hatCone.position.set(0, 0.6, -0.05); hatCone.rotation.x = -0.1; hatGroup.add(hatCone);
-const tipOrb = new THREE.Mesh(new THREE.SphereGeometry(.045,8,8),crystalM); tipOrb.position.set(0, 1.05, -0.1); hatGroup.add(tipOrb);
 
 const lShoulder=new THREE.Group(); lShoulder.position.set(-.29,1.23,0); char.add(lShoulder);
 const lUA=cone(.16, .13, .31, robeM); lUA.position.set(0,-.155,0); lShoulder.add(lUA);
@@ -336,37 +445,13 @@ const rShin=bx(.12,.34,.12,robeM); rShin.position.set(0,-.17,0); rKnee.add(rShin
 const rFoot=bx(.13,.08,.24,shoeM); rFoot.position.set(0,-.38,.05); rKnee.add(rFoot);
 const staffGroup = new THREE.Group();
 const shaft = cy(.045,1.8,staffWoodM,7); shaft.position.y=.9; staffGroup.add(shaft);
-const crystalTop = new THREE.Mesh(new THREE.OctahedronGeometry(.12,0),crystalM);
-crystalTop.position.y=1.85; staffGroup.add(crystalTop);
-const glowOrb = new THREE.Mesh(new THREE.SphereGeometry(.07,8,8),new THREE.MeshLambertMaterial({color:0xffaaff,emissive:0xaa33ff,emissiveIntensity:1.2}));
-glowOrb.position.y=1.85; staffGroup.add(glowOrb);
-const staffLight = new THREE.PointLight(0xcc55ff, 0, 10);
-staffGroup.add(staffLight); staffLight.position.y=1.85;
 const staffPivot = new THREE.Group();
 staffPivot.position.set(0,-.62,0);
 rElbow.add(staffPivot);
 staffPivot.add(staffGroup);
-staffGroup.position.set(.12,-.3,.0);
+staffGroup.position.set(.1,-.28,.0);
 staffGroup.rotation.set(0,0,0);
-let staffDrawn = false;
-function detachStaff(){
-  if(staffGroup.parent) staffGroup.parent.remove(staffGroup);
-}
-function setStaffSheathed(){
-  detachStaff();
-  char.add(staffGroup);
-  staffGroup.position.set(-.3, .6, -.14);
-  staffGroup.rotation.set(0, .4, .9);
-  staffLight.intensity = 0.2;
-}
-function setStaffDrawn(){
-  detachStaff();
-  staffPivot.add(staffGroup);
-  staffGroup.position.set(.1,-.28,.0);
-  staffGroup.rotation.set(0,0,0);
-  staffLight.intensity = 1.2;
-}
-setStaffSheathed();
+
 const lightningBolts = [];
 function makeLightningGeometry(start, end, forks=4, spread=0.7){
   const points=[];
@@ -390,7 +475,7 @@ function spawnLightning(from, to, range){
   const spread = range ? 1.5 : 0.5;
   const pts = makeLightningGeometry(from.clone(), to.clone(), range?5:3, spread);
   const geo = new THREE.BufferGeometry().setFromPoints(pts);
-  const mat = new THREE.LineBasicMaterial({color:0xee88ff, linewidth:3, transparent:true, opacity:1.0});
+  const mat = new THREE.LineBasicMaterial({color:0x88ffff, linewidth:3, transparent:true, opacity:1.0});
   const bolt = new THREE.LineSegments(geo, mat);
   scene.add(bolt);
   const corePts = [from.clone(), to.clone()];
@@ -398,16 +483,11 @@ function spawnLightning(from, to, range){
   const coreMat = new THREE.LineBasicMaterial({color:0xffffff, transparent:true, opacity:0.9});
   const core = new THREE.Line(coreGeo, coreMat);
   scene.add(core);
-  const flash = new THREE.PointLight(0xcc88ff, 6, range ? 25 : 10);
+  const flash = new THREE.PointLight(0x88ccff, 6, range ? 25 : 10);
   flash.position.copy(to);
   scene.add(flash);
-  const impactMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(range ? .6 : .25, 8, 8),
-    new THREE.MeshBasicMaterial({color:0xcc88ff, transparent:true, opacity:0.8})
-  );
-  impactMesh.position.copy(to); scene.add(impactMesh);
 
-  lightningBolts.push({ bolt, core, flash, impactMesh, age:0, maxAge: range ? 0.45 : 0.25 });
+  lightningBolts.push({ bolt, core, flash, age:0, maxAge: range ? 0.45 : 0.25 });
 }
 function updateLightning(dt){
   for(let i=lightningBolts.length-1;i>=0;i--){
@@ -417,48 +497,20 @@ function updateLightning(dt){
     b.bolt.material.opacity=t*0.9;
     b.core.material.opacity=t;
     b.flash.intensity=t*4;
-    b.impactMesh.material.opacity=t*0.7;
-    b.impactMesh.scale.setScalar(1+b.age*3);
     if(b.age>=b.maxAge){
-      scene.remove(b.bolt,b.core,b.flash,b.impactMesh);
+      scene.remove(b.bolt,b.core,b.flash);
       lightningBolts.splice(i,1);
     }
   }
 }
-const particles = [];
-function spawnSplash(pos, color=0x880000, count=8){
-  const geo = new THREE.BoxGeometry(0.08,0.08,0.08);
-  const mat = new THREE.MeshBasicMaterial({color});
-  for(let i=0; i<count; i++){
-    const p = new THREE.Mesh(geo, mat);
-    p.position.copy(pos);
-    const vel = new THREE.Vector3((Math.random()-.5)*6, Math.random()*6, (Math.random()-.5)*6);
-    particles.push({mesh:p, vel, life:1.0});
-    scene.add(p);
-  }
-}
-function updateParticles(dt){
-  for(let i=particles.length-1; i>=0; i--){
-    const p = particles[i];
-    p.life -= dt * 1.5;
-    p.vel.y -= 15 * dt;
-    p.mesh.position.addScaledVector(p.vel, dt);
-    p.mesh.scale.setScalar(p.life);
-    if(p.life <= 0){ scene.remove(p.mesh); particles.splice(i,1); }
-  }
-}
-let camYaw=0.3, camPitch=0.38, camDist=5.5;
+let camYaw=0.3, camPitch=0.38, camDist=15;
 let camShake=0;
-const CAM_MIN=1.5, CAM_MAX=22;
+const CAM_MIN=1.5, CAM_MAX=60;
 const keys={};
 document.addEventListener('keydown',e=>{
   keys[e.code]=true;
-  if(e.code==='KeyE') toggleStaff();
 });
 document.addEventListener('keyup',e=>{ keys[e.code]=false; });
-
-const hintEl = document.getElementById('action-hint');
-const chargeRing = document.getElementById('charge-ring');
 
 let isDragging=false, lastMX=0, lastMY=0;
 let mouseX=innerWidth/2, mouseY=innerHeight/2;
@@ -475,30 +527,24 @@ window.addEventListener('mousemove',e=>{
 
 renderer.domElement.addEventListener('mousedown',e=>{
   if(e.button===0){
-    if(staffDrawn){
-      chargeStart=performance.now();
-      isCharging=true;
-    } else {
-      isDragging=true; lastMX=e.clientX; lastMY=e.clientY;
-    }
+    chargeStart=performance.now();
+    isCharging=true;
   } else {
     isDragging=true; lastMX=e.clientX; lastMY=e.clientY;
   }
 });
 
 window.addEventListener('mouseup',e=>{
-  if(e.button===0 && isCharging && staffDrawn){
+  if(e.button===0 && isCharging){
     const held=(performance.now()-chargeStart)/1000;
     if(held < 0.3){
-      triggerSwing();
+      triggerSlam();
     } else {
       triggerLightning(held);
     }
     isCharging=false;
-    chargeRing.style.borderColor='rgba(120,80,255,0)';
-    chargeRing.style.boxShadow='0 0 0 0 rgba(120,80,255,0)';
   }
-  if(e.button!==0 || !staffDrawn) isDragging=false;
+  if(e.button!==0) isDragging=false;
   if(e.button===2) isDragging=false;
 });
 
@@ -509,93 +555,75 @@ window.addEventListener('wheel',e=>{
 
 document.addEventListener('contextmenu',e=>e.preventDefault());
 
-function toggleStaff(){
-  staffDrawn=!staffDrawn;
-  if(staffDrawn){ setStaffDrawn(); hintEl.textContent='staff drawn — click: swing | hold+release: lightning'; }
-  else { setStaffSheathed(); hintEl.textContent='staff sheathed'; }
-}
-
-// ── Swing state ───────────────────────────────────────────────────────────────
 let swingT=0, swinging=false;
 
-function triggerSwing(){
+function triggerSlam(){
   if(swinging) return;
   swinging=true; swingT=0;
-  hintEl.textContent='— swing! —';
   setTimeout(()=>{
-    checkSwingHitsGoblins();
-    hintEl.textContent='staff drawn — click: swing | hold+release: lightning';
-  },120);
+    checkSlamHitsGoblins();
+  }, 250);
 }
 
-function updateSwingAnim(dt){
+function updateSlamAnim(dt){
   if(!swinging) return;
-  swingT+=dt*5.5;
-  const arc=Math.sin(swingT*Math.PI);
-  // Baseball-style horizontal sweep
-  rShoulder.rotation.y = arc * 2.1; 
-  rShoulder.rotation.x = -arc * 0.4;
-  rElbow.rotation.z = -arc * 0.6;
-  torso.rotation.y = arc * 0.5;
-
-  if(swingT>=1){ 
-    swinging=false; 
-    rShoulder.rotation.y=0; rElbow.rotation.z=0; torso.rotation.y=0; 
+  swingT+=dt*4.0;
+  if(swingT < 0.4){
+    const p = swingT / 0.4;
+    rShoulder.rotation.x = -p * 1.5;
+    rElbow.rotation.x = p * 0.5;
+  } else if(swingT < 0.6){
+    const p = (swingT - 0.4) / 0.2;
+    rShoulder.rotation.x = -1.5 + p * 2.3;
+  } else {
+    const p = (swingT - 0.6) / 0.4;
+    rShoulder.rotation.x = 0.8 * (1 - p);
+    rElbow.rotation.x = 0.5 * (1 - p);
   }
+  if(swingT>=1){ swinging=false; rShoulder.rotation.x=0; rElbow.rotation.x=0; }
 }
 
-// ── Lightning cast ─────────────────────────────────────────────────────────────
 function triggerLightning(holdTime){
   const range = holdTime > 0.8;
-  // Staff tip world position
-  const tipWorld = new THREE.Vector3();
-  crystalTop.getWorldPosition(tipWorld);
-
-  // Raycast from camera center through crosshair
   const raycaster = new THREE.Raycaster();
-  // Traditional RPG targeting: always fire toward the screen center (crosshair)
-  raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-  const ray = raycaster.ray;
+  const mouseNDC = new THREE.Vector2(
+    (mouseX / window.innerWidth) * 2 - 1,
+    -(mouseY / window.innerHeight) * 2 + 1
+  );
+  raycaster.setFromCamera(mouseNDC, camera);
 
+  const intersects = raycaster.intersectObject(terrain);
   let targetPos;
-  if(range){
-    // Long range: travel far along ray
-    const dist = 40 + holdTime * 15;
-    targetPos = ray.origin.clone().addScaledVector(ray.direction, dist);
-    targetPos.y = Math.max(targetPos.y, getH(targetPos.x, targetPos.z) + .3);
-    hintEl.textContent='⚡ LIGHTNING STRIKE ⚡';
-    camShake = 0.6;
+  if(intersects.length > 0){
+    targetPos = intersects[0].point;
   } else {
-    // Short range: 8 units along ray
-    targetPos = ray.origin.clone().addScaledVector(ray.direction, 8);
-    hintEl.textContent='⚡ bolt ⚡';
+    const dist = range ? (40 + holdTime * 15) : 8;
+    targetPos = raycaster.ray.origin.clone().addScaledVector(raycaster.ray.direction, dist);
   }
-  setTimeout(()=>{ hintEl.textContent='staff drawn — click: swing | hold+release: lightning'; },800);
+  targetPos.y = Math.max(getH(targetPos), 0);
+  if(range) camShake = 0.6;
+  
+  const localDir = targetPos.clone().sub(playerPos).normalize();
+  facingYaw = Math.atan2(localDir.x, localDir.z);
 
-  // Face character toward target
-  const dx=targetPos.x-playerPos.x, dz=targetPos.z-playerPos.z;
-  facingYaw=Math.atan2(dx,dz);
-
-  // Raise casting arm
   swinging=false;
   rShoulder.rotation.x=-1.2;
   rElbow.rotation.x=0.3;
   setTimeout(()=>{ rShoulder.rotation.x=0; rElbow.rotation.x=0; },400);
-
-  spawnLightning(tipWorld, targetPos, range);
   
-  // FIX: Actually deal damage to enemies in the impact radius!
+  const skyOrigin = targetPos.clone().setY(200);
+  spawnLightning(skyOrigin, targetPos, range);
+  
   checkLightningHitsGoblins(targetPos, range ? 4.5 : 2.0, range ? 35 : 15);
 
-  // Secondary bolt for long range
   if(range){
-    const scatter = targetPos.clone().add(new THREE.Vector3((Math.random()-.5)*4,0,(Math.random()-.5)*4));
-    scatter.y = Math.max(scatter.y, getH(scatter.x,scatter.z)+.2);
-    setTimeout(()=>spawnLightning(tipWorld, scatter, true), 80);
+    const scatter = targetPos.clone().add(new THREE.Vector3((Math.random()-.5)*8, 0, (Math.random()-.5)*8));
+    scatter.y = Math.max(getH(scatter), 0);
+    const skyOrigin2 = scatter.clone().setY(200);
+    setTimeout(()=>spawnLightning(skyOrigin2, scatter, true), 80);
   }
 }
 
-// ── Goblin system ─────────────────────────────────────────────────────────────
 const goblinSkinM  = new THREE.MeshLambertMaterial({color:0x5a8a3a});
 const goblinClothM = new THREE.MeshLambertMaterial({color:0x6b4a20});
 const goblinEyeM   = new THREE.MeshLambertMaterial({color:0xff2200,emissive:0x880000,emissiveIntensity:0.8});
@@ -606,31 +634,23 @@ const goblinWickM  = new THREE.MeshLambertMaterial({color:0x222222});
 
 function makeGoblinMesh(){
   const g = new THREE.Group();
-  // body — squat, hunched
   const body = new THREE.Mesh(new THREE.BoxGeometry(.34,.4,.22), goblinClothM); body.position.y=.52; body.castShadow=true; g.add(body);
-  // head — big, lumpy
   const head = new THREE.Mesh(new THREE.BoxGeometry(.32,.28,.28), goblinSkinM); head.position.y=.88; head.castShadow=true; g.add(head);
-  // big ears
   [-1,1].forEach(s=>{
     const ear = new THREE.Mesh(new THREE.ConeGeometry(.08,.18,5), goblinSkinM);
     ear.position.set(s*.2,.96,0); ear.rotation.z=s*Math.PI/2.5; ear.castShadow=true; g.add(ear);
   });
-  // eyes — glowing red
   [-1,1].forEach(s=>{
     const eye = new THREE.Mesh(new THREE.SphereGeometry(.055,6,6), goblinEyeM);
     eye.position.set(s*.08,.9,.13); g.add(eye);
   });
-  // nose bump
   const nose = new THREE.Mesh(new THREE.SphereGeometry(.055,5,4), goblinSkinM); nose.position.set(0,.84,.15); g.add(nose);
-  // teeth
   [-1,1].forEach(s=>{
     const tooth = new THREE.Mesh(new THREE.BoxGeometry(.04,.07,.04), goblinTeethM);
     tooth.position.set(s*.06,.76,.13); g.add(tooth);
   });
-  // hips
   const hips = new THREE.Mesh(new THREE.BoxGeometry(.36,.18,.2), goblinClothM); hips.position.y=.3; hips.castShadow=true; g.add(hips);
 
-  // arms — long gangly
   const lArm = new THREE.Group(); lArm.position.set(-.22,.64,0); g.add(lArm);
   const lUArm = new THREE.Mesh(new THREE.BoxGeometry(.1,.28,.1),goblinSkinM); lUArm.position.y=-.14; lUArm.castShadow=true; lArm.add(lUArm);
   const lFArm = new THREE.Group(); lFArm.position.y=-.28; lArm.add(lFArm);
@@ -641,12 +661,10 @@ function makeGoblinMesh(){
   const rFArm = new THREE.Group(); rFArm.position.y=-.28; rArm.add(rFArm);
   const rLArm = new THREE.Mesh(new THREE.BoxGeometry(.09,.26,.09),goblinSkinM); rLArm.position.y=-.13; rLArm.castShadow=true; rFArm.add(rLArm);
 
-  // dynamite in left hand
   const dynamite = new THREE.Group(); dynamite.position.set(0,-.48,0); lFArm.add(dynamite);
   const dynBody = new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,.22,8), goblinDynM); dynBody.rotation.x=Math.PI/2; dynamite.add(dynBody);
   const wick = new THREE.Mesh(new THREE.CylinderGeometry(.006,.006,.08,4), goblinWickM); wick.position.set(0,.12,0); wick.rotation.z=0.2; dynamite.add(wick);
 
-  // legs — short and bowed
   const lLeg = new THREE.Group(); lLeg.position.set(-.1,.28,0); g.add(lLeg);
   const lThigh = new THREE.Mesh(new THREE.BoxGeometry(.12,.24,.12),goblinSkinM); lThigh.position.y=-.12; lThigh.castShadow=true; lLeg.add(lThigh);
   const lKnee = new THREE.Group(); lKnee.position.y=-.24; lLeg.add(lKnee);
@@ -659,7 +677,6 @@ function makeGoblinMesh(){
   const rShin = new THREE.Mesh(new THREE.BoxGeometry(.1,.22,.1),goblinSkinM); rShin.position.y=-.11; rShin.castShadow=true; rKnee.add(rShin);
   const rFoot = new THREE.Mesh(new THREE.BoxGeometry(.11,.07,.18),goblinClothM); rFoot.position.set(0,-.26,.04); rKnee.add(rFoot);
 
-  // crude weapon — bone club in right hand
   const club = new THREE.Group(); club.position.set(0,-.52,0); rFArm.add(club);
   const clubHandle = new THREE.Mesh(new THREE.CylinderGeometry(.03,.03,.5,5), goblinWeapM); clubHandle.position.y=-.25; club.add(clubHandle);
   const clubHead = new THREE.Mesh(new THREE.SphereGeometry(.1,6,5), goblinWeapM); clubHead.position.y=-.52; club.add(clubHead);
@@ -667,54 +684,30 @@ function makeGoblinMesh(){
   return { group:g, lArm, rArm, lLeg, rLeg, lKnee, rKnee, lFArm, rFArm, club };
 }
 
-// Health bar canvas
-function makeHealthBar(){
-  const canvas = document.createElement('canvas');
-  canvas.width=128; canvas.height=20;
-  const tex = new THREE.CanvasTexture(canvas);
-  const mat = new THREE.SpriteMaterial({map:tex, depthTest:false});
-  const sprite = new THREE.Sprite(mat);
-  sprite.scale.set(1.4,.22,1);
-  return {sprite, canvas, tex, ctx:canvas.getContext('2d')};
-}
-function updateHealthBar(hb, hp, maxHp){
-  const {ctx,canvas,tex}=hb;
-  ctx.clearRect(0,0,128,20);
-  ctx.fillStyle='rgba(26,0,0,0.8)'; ctx.fillRect(1,1,126,18);
-  const pct=Math.max(0,hp/maxHp);
-  const col=pct>.5?`rgb(${Math.round((1-pct)*2*255)},200,0)`:`rgb(255,${Math.round(pct*2*200)},0)`;
-  ctx.fillStyle=col; ctx.fillRect(2,2,Math.round(124*pct),16);
-  ctx.strokeStyle='#444'; ctx.lineWidth=1; ctx.strokeRect(1,1,126,18);
-  tex.needsUpdate=true;
-}
-
-// Goblin states
 const GOBLIN_IDLE=0, GOBLIN_PATROL=1, GOBLIN_CHASE=2, GOBLIN_ATTACK=3, GOBLIN_HIT=4, GOBLIN_DEAD=5;
-
 const goblins=[];
 
-function spawnGoblin(x,z){
-  const gh=getH(x,z);
+function spawnGoblin() {
+  const gx = (Math.random() - 0.5) * MAP_SIZE;
+  const gz = (Math.random() - 0.5) * MAP_SIZE;
+  if (Math.abs(gx) < 30 && Math.abs(gz) < 30) return;
+  const gh = Math.max(getH({ x: gx, z: gz }), 0);
   const mesh=makeGoblinMesh();
-  mesh.group.position.set(x,gh,z);
+  const finalPos = new THREE.Vector3(gx, gh, gz);
+  mesh.group.position.copy(finalPos);
   scene.add(mesh.group);
 
-  const hb=makeHealthBar();
-  hb.sprite.position.set(x,gh+1.6,z);
-  scene.add(hb.sprite);
-  updateHealthBar(hb,30,30);
-
-  const patrolTarget=new THREE.Vector3(x+(Math.random()-.5)*20, 0, z+(Math.random()-.5)*20);
+  const patrolTarget = finalPos.clone().add(new THREE.Vector3((Math.random() - 0.5) * 20, 0, (Math.random() - 0.5) * 20));
 
   goblins.push({
-    mesh, hb,
-    pos: new THREE.Vector3(x,gh,z),
-    vel: new THREE.Vector3(),
+    mesh,
+    pos: finalPos,
+    vel: new THREE.Vector3(0,0,0),
     hp:30, maxHp:30,
     state: GOBLIN_PATROL,
     animT:0,
     stateTimer:0,
-    attackCooldown:0,
+    attackCooldown:Math.random()*2,
     hitTimer:0,
     patrolTarget,
     facingYaw:Math.random()*Math.PI*2,
@@ -723,14 +716,9 @@ function spawnGoblin(x,z){
   });
 }
 
-// Spawn goblins spread around the map, not too close to spawn
-for(let i=0;i<40;i++){
-  let gx,gz;
-  do{ gx=(Math.random()-.5)*180; gz=(Math.random()-.5)*180; }
-  while(Math.sqrt(gx*gx+gz*gz)<20);
-  spawnGoblin(gx,gz);
+for(let i=0;i<800;i++){
+  spawnGoblin();
 }
-
 function applyGoblinWalk(m, t, spd){
   const s=Math.min(spd/3,1);
   m.lLeg.rotation.x=Math.sin(t)*.7*s;
@@ -748,8 +736,6 @@ function applyGoblinAttack(m, t){
 function damageGoblin(goblin, dmg){
   if(goblin.dead) return;
   goblin.hp=Math.max(0,goblin.hp-dmg);
-  updateHealthBar(goblin.hb, goblin.hp, goblin.maxHp);
-  spawnSplash(goblin.pos.clone().setY(goblin.pos.y+0.8), 0x770000, 10);
   goblin.state=GOBLIN_HIT;
   goblin.hitTimer=0.25;
   goblin.mesh.group.traverse(c=>{
@@ -765,11 +751,12 @@ function killGoblin(goblin){
   goblin.exploded=false;
   goblin.state=GOBLIN_DEAD;
   goblin.deathTimer=0;
-  goblin.hb.sprite.visible=false;
   goblin.mesh.group.traverse(c=>{
     if(c.isMesh) c.material=new THREE.MeshLambertMaterial({color:0x3a4a2a});
   });
-  goblin.deathVel = new THREE.Vector3((Math.random()-0.5)*15, 25 + Math.random()*25, (Math.random()-0.5)*15);
+  const push = goblin.pos.clone().sub(playerPos).normalize();
+  goblin.deathVel = push.setY(0).normalize().multiplyScalar(25 + Math.random()*15);
+  goblin.deathVel.y = 10 + Math.random() * 10;
   goblin.deathRot = new THREE.Vector3(Math.random()*12, Math.random()*12, Math.random()*12);
 }
 function checkLightningHitsGoblins(impactPos, radius, dmg){
@@ -779,80 +766,45 @@ function checkLightningHitsGoblins(impactPos, radius, dmg){
     if(dist<radius) damageGoblin(gb,dmg);
   });
 }
-function checkSwingHitsGoblins(){
-  if (!staffDrawn) return;
-  // Baseball swing hit detection: broad frontal arc
-  const forward = new THREE.Vector3(0,0,1).applyQuaternion(char.quaternion);
+function checkSlamHitsGoblins(){
   goblins.forEach(gb=>{
     if(gb.dead) return;
-    const toGob = gb.pos.clone().sub(playerPos);
-    const dist = toGob.length();
-    if(dist < 3.8){ // Increased reach for the swing sweep
-      toGob.normalize();
-      const dot = forward.dot(toGob);
-      if(dot > 0.2) damageGoblin(gb, 20); // Hits anything in a ~150 degree arc
+    const dist = gb.pos.distanceTo(playerPos);
+    if(dist < 5.5){
+      damageGoblin(gb, 25);
+      if(!gb.dead && Math.random() < 0.4) killGoblin(gb);
     }
   });
 }
 let playerHp=100, playerMaxHp=100;
-const playerHpBar=document.createElement('div');
-playerHpBar.style.cssText='position:fixed;bottom:70px;left:50%;transform:translateX(-50%);width:200px;height:14px;background:#1a0000;border:1px solid #444;border-radius:3px;overflow:hidden;pointer-events:none';
-const playerHpFill=document.createElement('div');
-playerHpFill.style.cssText='height:100%;width:100%;background:#22cc44;transition:width .2s,background .2s';
-playerHpBar.appendChild(playerHpFill); document.body.appendChild(playerHpBar);
-const playerHpLabel=document.createElement('div');
-playerHpLabel.style.cssText='position:fixed;bottom:86px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.5);font-size:11px;letter-spacing:.1em;pointer-events:none';
-playerHpLabel.textContent='HP'; document.body.appendChild(playerHpLabel);
 function damagePlayer(dmg){
-  if(playerHp <= 0) return;
-  playerHp=Math.max(0,playerHp-dmg);
-  const pct=playerHp/playerMaxHp;
-  playerHpFill.style.width=(pct*100)+'%';
-  playerHpFill.style.background=pct>.5?`rgb(${Math.round((1-pct)*2*255)},200,0)`:`rgb(255,${Math.round(pct*2*200)},0)`;
-  const flash=document.createElement('div');
-  flash.style.cssText='position:fixed;inset:0;background:rgba(255,0,0,0.25);pointer-events:none;z-index:99';
-  document.body.appendChild(flash);
-  setTimeout(()=>flash.remove(),180);
-  if(playerHp <= 0){
-    hintEl.textContent = 'YOU DIED! RESTARTING...';
-    hintEl.style.color = '#ff3333';
-    hintEl.style.fontSize = '24px';
-    hintEl.style.opacity = '1';
-    setTimeout(() => location.reload(), 3000);
-  }
+  // Player is invincible to ensure the game never ends
 }
 function updateGoblins(dt, playerPos){
   goblins.forEach(gb=>{
     if(gb.dead){
       if(gb.exploded) return;
       gb.deathTimer+=dt;
-      gb.deathVel.y -= 6 * dt; // Lower gravity for a floatier launch
       gb.pos.addScaledVector(gb.deathVel, dt);
-      gb.mesh.group.position.copy(gb.pos);
+      gb.mesh.group.position.copy(gb.pos); 
       gb.mesh.group.rotation.x += gb.deathRot.x * dt;
       gb.mesh.group.rotation.y += gb.deathRot.y * dt;
       gb.mesh.group.rotation.z += gb.deathRot.z * dt;
 
-      if(gb.pos.y > 80){
+      if(gb.pos.y < -50 || gb.pos.y > 500){
         gb.exploded = true;
-        spawnSplash(gb.pos, 0xee88ff, 40);
-        const f = new THREE.PointLight(0xcc88ff, 15, 40);
-        f.position.copy(gb.pos);
-        scene.add(f);
-        setTimeout(()=>scene.remove(f), 150);
         scene.remove(gb.mesh.group);
-        scene.remove(gb.hb.sprite);
       }
 
       if(gb.deathTimer>6){
         scene.remove(gb.mesh.group);
-        scene.remove(gb.hb.sprite);
       }
       return;
     }
     gb.stateTimer+=dt;
     gb.attackCooldown=Math.max(0,gb.attackCooldown-dt);
     if(gb.hitTimer>0){ gb.hitTimer-=dt; return; }
+
     const distToPlayer=gb.pos.distanceTo(playerPos);
     const DETECT_RANGE=22, CHASE_RANGE=30, ATTACK_RANGE=1.8;
     if(gb.state!==GOBLIN_ATTACK){
@@ -867,33 +819,27 @@ function updateGoblins(dt, playerPos){
     let speed=0;
     if(gb.state===GOBLIN_PATROL){
       if(gb.stateTimer>4||gb.pos.distanceTo(gb.patrolTarget)<1.5){
-        gb.patrolTarget.set(gb.pos.x+(Math.random()-.5)*18,0,gb.pos.z+(Math.random()-.5)*18);
+        gb.patrolTarget.set(gb.pos.x + (Math.random()-0.5)*30, 0, gb.pos.z + (Math.random()-0.5)*30);
         gb.stateTimer=0;
       }
-      const dx=gb.patrolTarget.x-gb.pos.x, dz=gb.patrolTarget.z-gb.pos.z;
-      const dist=Math.sqrt(dx*dx+dz*dz);
+      const dist = gb.pos.distanceTo(gb.patrolTarget); 
       if(dist>0.5){
-        const tx=dx/dist, tz=dz/dist;
-        gb.vel.x=tx*1.8; gb.vel.z=tz*1.8;
-        gb.facingYaw=Math.atan2(tx,tz);
-        speed=1.8;
-      } else { gb.vel.x*=.8; gb.vel.z*=.8; }
+        gb.vel.subVectors(gb.patrolTarget, gb.pos).normalize().multiplyScalar(1.8);
+        speed = 1.8;
+      } else { gb.vel.multiplyScalar(0.8); }
     } else if(gb.state===GOBLIN_CHASE){
-      const dx=playerPos.x-gb.pos.x, dz=playerPos.z-gb.pos.z;
-      const dist=Math.sqrt(dx*dx+dz*dz);
+      const dist = gb.pos.distanceTo(playerPos);
       if(dist>0.1){
-        const tx=dx/dist, tz=dz/dist;
-        const spd=4.5;
-        gb.vel.x=tx*spd; gb.vel.z=tz*spd;
-        gb.facingYaw=Math.atan2(tx,tz);
-        speed=spd;
+        gb.vel.subVectors(playerPos, gb.pos).normalize().multiplyScalar(4.5);
+        speed=4.5;
       }
     } else if(gb.state===GOBLIN_ATTACK){
-      gb.vel.x*=.7; gb.vel.z*=.7;
+      gb.vel.multiplyScalar(0.7);
       gb.animT+=dt*5;
       applyGoblinAttack(gb.mesh,gb.animT);
-      const dx=playerPos.x-gb.pos.x, dz=playerPos.z-gb.pos.z;
-      gb.facingYaw=Math.atan2(dx,dz);
+      const toPlayer = playerPos.clone().sub(gb.pos);
+      gb.facingYaw = Math.atan2(toPlayer.x, toPlayer.z);
+
       if(gb.animT>0.5 && gb.animT<0.6 && gb.attackCooldown<=0){
         if(distToPlayer<ATTACK_RANGE+.3){ damagePlayer(8); }
         gb.attackCooldown=2.2;
@@ -904,39 +850,36 @@ function updateGoblins(dt, playerPos){
       }
     }
 
-    // Move
-    gb.pos.x+=gb.vel.x*dt; gb.pos.z+=gb.vel.z*dt;
-    gb.pos.x=Math.max(-140,Math.min(140,gb.pos.x));
-    gb.pos.z=Math.max(-140,Math.min(140,gb.pos.z));
-    gb.pos.y=getH(gb.pos.x,gb.pos.z);
+    gb.pos.addScaledVector(gb.vel, dt); 
+    checkRuinCollision(gb.pos, 0.5);
+    gb.pos.y = Math.max(getH(gb.pos), 0);
 
     gb.mesh.group.position.copy(gb.pos);
-    gb.mesh.group.rotation.y+=(gb.facingYaw-gb.mesh.group.rotation.y)*.2;
+    gb.mesh.group.rotation.set(0, 0, 0);
 
-    // Walk anim
+    if (speed > 0.1) {
+      gb.facingYaw = Math.atan2(gb.vel.x, gb.vel.z);
+    }
+    gb.mesh.group.rotation.y = gb.facingYaw;
+
     if(gb.state!==GOBLIN_ATTACK){
       gb.animT+=dt*(speed>2?8:5);
       applyGoblinWalk(gb.mesh,gb.animT,speed);
     }
-
-    // Health bar floats above head
-    gb.hb.sprite.position.set(gb.pos.x, gb.pos.y+1.6, gb.pos.z);
-    // Only show health bar when damaged or nearby
-    gb.hb.sprite.visible = (gb.hp<gb.maxHp || distToPlayer<12);
   });
 }
 
-// ── Player state ──────────────────────────────────────────────────────────────
 const cameraTarget = new THREE.Vector3();
 const cameraLerpSpeed = 0.12;
-camera.position.set(0, 10, 10); // Starting offset
+camera.position.set(0, 10, 10);
 
-const playerPos=new THREE.Vector3();
+const playerPos = new THREE.Vector3(0, 0, 0);
+playerPos.y = Math.max(getH(playerPos), 0) + 1.2;
 const velocity=new THREE.Vector3();
-let facingYaw=0, animT=0, moving=false;
+let verticalVel = 0;
+let facingYaw=0, animT=0, moving=false, isGrounded=true;
 const clock=new THREE.Clock();
 
-// ── Walk animation ─────────────────────────────────────────────────────────────
 function applyWalk(t,spd){
   if(swinging) return;
   const s=Math.min(spd/3.5,1);
@@ -960,64 +903,69 @@ function resetWalk(){
   }
   torso.rotation.z*=.85;
 }
-const hintElSpeed = document.getElementById('speed-indicator');
-const speedEl = document.createElement('div');
-speedEl.style.cssText='position:fixed;bottom:48px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:.1em;text-transform:uppercase;pointer-events:none;text-shadow:0 1px 4px rgba(0,0,0,.8)';
-document.body.appendChild(speedEl);
 function animate(){
   requestAnimationFrame(animate);
   const dt=Math.min(clock.getDelta(),.05);
-  if(playerHp <= 0) {
-    renderer.render(scene, camera);
-    return;
-  }
-  if(isCharging && staffDrawn){
-    const held=(performance.now()-chargeStart)/1000;
-    const pct=Math.min(held/.8,1);
-    const r=Math.round(120+pct*80),g=Math.round(80-pct*40),b=255;
-    chargeRing.style.borderColor=`rgba(${r},${g},${b},${0.4+pct*.6})`;
-    chargeRing.style.boxShadow=`0 0 ${8+pct*20}px ${pct*8}px rgba(${r},${g},${b},${0.3+pct*.5})`;
-    chargeRing.style.width=`${40+pct*20}px`;
-    chargeRing.style.height=`${40+pct*20}px`;
-  }
-  const pulse=.8+Math.sin(clock.elapsedTime*3)*.2;
-  crystalM.emissiveIntensity=pulse*.7;
-  staffLight.intensity=(staffDrawn ? 1.0 : 0.6) + Math.sin(clock.elapsedTime*3)*.4;
-  crystalTop.rotation.y+=dt*1.5;
 
   const running=keys['ShiftLeft']||keys['ShiftRight'];
-  const speed=running?8.5:3.8;
+  const speed=running?25:3.8;
   moving=false;
   const dir=new THREE.Vector3();
   if(keys['KeyW']){dir.z-=1;moving=true;}
   if(keys['KeyS']){dir.z+=1;moving=true;}
   if(keys['KeyA']){dir.x-=1;moving=true;}
   if(keys['KeyD']){dir.x+=1;moving=true;}
-  if(dir.length()>0){
-    dir.normalize().applyEuler(new THREE.Euler(0,camYaw,0));
-    velocity.x=dir.x*speed; velocity.z=dir.z*speed;
-    facingYaw=Math.atan2(dir.x,dir.z);
-  } else { velocity.x*=.82; velocity.z*=.82; }
-  playerPos.x+=velocity.x*dt; playerPos.z+=velocity.z*dt;
-  if(Math.sqrt(playerPos.x**2+playerPos.z**2)>140){playerPos.x*=.985;playerPos.z*=.985;}
-  playerPos.y=getH(playerPos.x,playerPos.z);
-  char.rotation.y+=(facingYaw-char.rotation.y)*.18;
+  if (dir.length() > 0) {
+    const camDir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).setY(0).normalize();
+    const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).setY(0).normalize();
+    
+    const moveVec = camDir.multiplyScalar(-dir.z).add(camRight.multiplyScalar(dir.x)).normalize();
+    velocity.copy(moveVec).multiplyScalar(speed);
+    facingYaw = Math.atan2(velocity.x, velocity.z);
+  } else { velocity.set(0, 0, 0); }
+
+  if(keys['Space'] && isGrounded){
+    verticalVel = 16;
+    isGrounded = false;
+  }
+
+  playerPos.addScaledVector(velocity, dt);
+  checkRuinCollision(playerPos, 0.8);
+
+  verticalVel -= 45 * dt;
+  playerPos.y += verticalVel * dt;
+  const groundH = Math.max(getH(playerPos), 0);
+  if (playerPos.y <= groundH) {
+    playerPos.y = groundH;
+    verticalVel = Math.max(0, verticalVel);
+    isGrounded = true;
+  } else isGrounded = false;
+
   char.position.copy(playerPos);
+  char.rotation.set(0, facingYaw, 0);
   const spd=Math.sqrt(velocity.x**2+velocity.z**2);
-  if(moving&&spd>.3){animT+=dt*(running?10:6);applyWalk(animT,spd);}
+  if(moving&&spd>.3&&isGrounded){animT+=dt*(running?10:6);applyWalk(animT,spd);}
   else resetWalk();
-  updateSwingAnim(dt);
+  updateSlamAnim(dt);
   updateLightning(dt);
   updateGoblins(dt, playerPos);
   updateEnvironment(dt);
 
-  speedEl.textContent=spd<.4?'standing':spd<5.5?'walking':'running';
-  const cx=playerPos.x+Math.sin(camYaw)*Math.cos(camPitch)*camDist;
-  const cy=playerPos.y+1.0+Math.sin(camPitch)*camDist;
-  const cz=playerPos.z+Math.cos(camYaw)*Math.cos(camPitch)*camDist;
-  camera.position.set(cx,Math.max(getH(cx,cz)+.4,cy),cz);
-  camera.lookAt(playerPos.x,playerPos.y+1.0,playerPos.z);
-  renderer.render(scene,camera);
+  const camOffset = new THREE.Vector3(Math.sin(camYaw)*Math.cos(camPitch)*camDist, Math.sin(camPitch)*camDist, Math.cos(camYaw)*Math.cos(camPitch)*camDist);
+  const targetCamPos = playerPos.clone().add(camOffset);
+  const lookAtPos = new THREE.Vector3(playerPos.x, playerPos.y + 1.2, playerPos.z);
+  const camRayDir = new THREE.Vector3().subVectors(targetCamPos, lookAtPos).normalize();
+  camRaycaster.set(lookAtPos, camRayDir);
+  camRaycaster.far = camDist;
+  const camHits = camRaycaster.intersectObjects(staticObjects, true);
+  if (camHits.length > 0) {
+    camera.position.copy(camHits[0].point).addScaledVector(camRayDir, -0.2);
+  } else {
+    camera.position.copy(targetCamPos);
+  }
+  camera.up.set(0, 1, 0);
+  camera.lookAt(lookAtPos);
+  renderer.render(scene, camera);
 }
 
 window.addEventListener('resize',()=>{
