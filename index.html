@@ -114,6 +114,18 @@
     background: rgba(0, 20, 50, 0.8);
     transform: scale(1.1);
   }
+
+  /* Resource UI */
+  #resource-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    color: #fff;
+    font-family: 'Metamorphous', cursive;
+    font-size: 1.8em;
+    text-shadow: 0 0 10px #00f, 0 0 20px #000;
+    z-index: 100;
+  }
 </style>
 </head>
 <body>
@@ -126,6 +138,9 @@
   <div id="spell-1" class="spell-icon active">1</div>
   <div id="spell-2" class="spell-icon">2</div>
   <div id="spell-3" class="spell-icon">3</div>
+</div>
+<div id="resource-container">
+  Lumber: <span id="lumber-count">0</span>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -161,11 +176,11 @@ const moon = new THREE.DirectionalLight(0xaaaaff, 0.2);
 moon.castShadow = false;
 scene.add(moon);
 
-const fill=new THREE.DirectionalLight(0x443366,0.2); fill.position.set(-40,20,-20); scene.add(fill);
-
 let gameTime = 12;
-const MAP_SIZE = 4000;
-const MAP_HALF = MAP_SIZE / 2;
+const CHUNK_SIZE = 400;
+const VIEW_DISTANCE = 4; // Number of chunks to render in each direction
+const activeChunks = new Map();
+
 const starGeo = new THREE.BufferGeometry();
 const starPos = [];
 for(let i=0; i<3000; i++) {
@@ -194,7 +209,7 @@ function updateEnvironment(dt) {
   hemiLight.intensity = 0.4 + Math.max(0, sunUp) * 0.5;
   stars.material.opacity = Math.max(0, -sunUp);
 
-  const skyCol = new THREE.Color(0x151520).lerp(new THREE.Color(0xc0a080), Math.max(0, sunUp));
+  const skyCol = new THREE.Color(0x050b1a).lerp(new THREE.Color(0x87ceeb), Math.max(0, sunUp));
   if(Math.abs(sunUp) < 0.2) skyCol.lerp(new THREE.Color(0x4a3a2a), 1 - Math.abs(sunUp)*5);
   scene.background = skyCol;
   // throttle very cheap visual updates that don't need to run every frame
@@ -210,6 +225,9 @@ function getRandomDir() {
   if (v.lengthSq() < 0.001) return getRandomDir();
   return v.normalize();
 }
+
+const treeHealth = new Map();
+const treeBlinks = [];
 
 const terrainOffset = new THREE.Vector3(Math.random() * 1e5, 0, Math.random() * 1e5);
 function getH(pos) {
@@ -235,7 +253,7 @@ function getH(pos) {
     h -= depth;
   }
 
-  const bDist = Math.max(Math.abs(pos.x), Math.abs(pos.z));
+  /* const bDist = Math.max(Math.abs(pos.x), Math.abs(pos.z));
   
   // Pre-Border Range: A large set of intricate mountains before the final border wall
   if (bDist > 550) {
@@ -247,8 +265,9 @@ function getH(pos) {
   }
 
   if (bDist > MAP_SIZE * 0.35) h += Math.pow((bDist - MAP_SIZE * 0.35) / (MAP_SIZE * 0.15), 1.7) * 750;
-
-  const sDistSq = pos.x * pos.x + pos.z * pos.z;
+  */
+ 
+  const sDistSq = (pos.x || 0) * (pos.x || 0) + (pos.z || 0) * (pos.z || 0);
   if (sDistSq < 160000) {
     const sFactor = 1.0 - Math.min(Math.sqrt(sDistSq) / 400, 1.0);
     h = h * (1 - sFactor) + (7 + sFactor * 2) * sFactor; // Smoothly blend center to safe height
@@ -256,35 +275,11 @@ function getH(pos) {
 
   return h;
 }
-const tGeo = new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE, 256, 256);
-tGeo.rotateX(-Math.PI / 2);
-const tp=tGeo.attributes.position;
-const _v = new THREE.Vector3();
-const colors = [];
-for(let i=0;i<tp.count;i++) {
-  _v.fromBufferAttribute(tp, i);
-  const h = getH(_v);
-  tp.setY(i, h);
-  const c = new THREE.Color();
-  if (h > 100) c.setHex(0xffffff);
-  else if (h > 60) c.setHex(0x888888);
-  else if (h < 0) c.setHex(0x2a3a2a); // Riverbed
-  else if (h < 4.5) c.setHex(0x5c4033); // Robust Brown Banks
-  else c.setHex(0x5a7a5a); // Grassland
-  colors.push(c.r, c.g, c.b);
-}
-tGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-tp.needsUpdate = true;
-tGeo.computeVertexNormals();
-const terrain=new THREE.Mesh(tGeo,new THREE.MeshLambertMaterial({vertexColors: true}));
-terrain.receiveShadow=true; scene.add(terrain);
-staticObjects.push(terrain);
 
-const waterGeo = new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE);
-waterGeo.rotateX(-Math.PI / 2);
-const water = new THREE.Mesh(waterGeo, new THREE.MeshLambertMaterial({color: 0x153565, transparent: true, opacity: 0.7}));
-water.position.y = -0.5;
-scene.add(water);
+// Initialize Player Position and State early so other systems can reference it
+const playerPos = new THREE.Vector3(0, 0, 0);
+playerPos.y = Math.max(getH(playerPos), 0) + 1.2;
+const velocity = new THREE.Vector3();
 
 const ruins = [];
 const ruinRaycaster = new THREE.Raycaster();
@@ -308,11 +303,11 @@ function checkRuinCollision(pos, radius) {
     }
   }
 }
-function makeCastleRuin(spawnPos) {
+function makeCastleRuin(spawnPos, parentGroup) {
   const h = getH(spawnPos);
   const stoneM = new THREE.MeshLambertMaterial({color:0x555555});
   const ruinCenter = new THREE.Vector3(spawnPos.x, h, spawnPos.z);
-  const radius = 14, walls = 22, rData = { pos: ruinCenter.clone(), parts: [] };
+  const radius = 14, walls = 22, rData = { pos: ruinCenter.clone(), parts: [], parentChunkGroup: parentGroup };
 
   function place(lx, lz, geo, rotY, collRad=0){
     const itemX = ruinCenter.x + lx, itemZ = ruinCenter.z + lz;
@@ -324,7 +319,7 @@ function makeCastleRuin(spawnPos) {
     const halfHeight = (geo && geo.parameters && geo.parameters.height) ? (geo.parameters.height / 2) : 0;
     mesh.position.y += halfHeight;
     mesh.rotation.y = rotY;
-    scene.add(mesh);
+    parentGroup.add(mesh);
     staticObjects.push(mesh);
     if(collRad > 0) rData.parts.push({ world: itemSurface.clone(), rad: collRad, mesh: mesh });
     return mesh;
@@ -353,7 +348,38 @@ function makeCastleRuin(spawnPos) {
   const kh = 14 + Math.random() * 8;
   place(0, 0, new THREE.BoxGeometry(7, kh, 7), 0, 5.5);
   ruins.push(rData);
+  return rData;
 }
+
+let lumber = 0;
+const lumberDisplay = document.getElementById('lumber-count');
+function updateLumber(amount) {
+  lumber += amount;
+  lumberDisplay.innerText = lumber;
+}
+
+const lumberStacks = [];
+const logGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 6);
+const logMat = new THREE.MeshLambertMaterial({ color: 0x6d4c41 });
+
+function spawnLumberStack(pos) {
+  const group = new THREE.Group();
+  for (let i = 0; i < 3; i++) {
+    const log = new THREE.Mesh(logGeo, logMat);
+    log.rotation.z = Math.PI / 2;
+    log.rotation.y = (i * Math.PI) / 3 + Math.random();
+    log.position.set((Math.random() - 0.5) * 0.4, 0.15, (Math.random() - 0.5) * 0.4);
+    log.castShadow = true;
+    group.add(log);
+  }
+  group.position.copy(pos);
+  group.position.y = getH(pos) + 0.1;
+  scene.add(group);
+  lumberStacks.push({ mesh: group, pos: group.position.clone() });
+}
+
+const zeroScale = new THREE.Matrix4().makeScale(0, 0, 0);
+const _v3_util = new THREE.Vector3();
 
 const _tObj = new THREE.Object3D();
 const _tMat = new THREE.Matrix4();
@@ -387,73 +413,250 @@ const treeTemplate = (() => {
   g.updateMatrixWorld(true);
   return g;
 })();
-const TREE_COUNT = 6000; /* Increased tree count for a denser forest */
-const treeMatrices = [];
-const treeInstancedMeshes = [];
 
-for (let i = 0; i < TREE_COUNT; i++) {
-  let tx, tz, th, safety = 0;
-  do {
-    tx = (Math.random() - 0.5) * MAP_SIZE;
-    tz = (Math.random() - 0.5) * MAP_SIZE;
-    th = getH({ x: tx, z: tz });
-    safety++;
-  } while ((Math.abs(tx) < 40 && Math.abs(tz) < 40 || th < 2 || th > 25) && safety < 100);
+const treeMatrices = []; // Global list of "hit" trees to ignore during chunk rebuilds
+const treeInstancedMeshes = []; // This will now be managed per-chunk
 
-  if (safety >= 100) continue;
-  _tObj.position.set(tx, th, tz);
-  _tObj.quaternion.set(0, 0, 0, 1);
-  _tObj.rotateY(Math.random() * Math.PI * 2);
-  const s = 0.6 + Math.random() * 0.8;
-  _tObj.scale.set(s, s, s);
-  _tObj.updateMatrix();
-  treeMatrices.push(_tObj.matrix.clone());
-}
+function createChunk(cx, cz) {
+  const group = new THREE.Group();
+  const xOffset = cx * CHUNK_SIZE;
+  const zOffset = cz * CHUNK_SIZE;
+  const chunkGoblins = [];
+  const chunkTrolls = [];
 
-treeTemplate.traverse(child => {
-  if (child.isMesh) {
-    const actualCount = treeMatrices.length;
-    const inst = new THREE.InstancedMesh(child.geometry, child.material, actualCount);
-    inst.castShadow = true;
-    inst.receiveShadow = true;
-    for (let i = 0; i < actualCount; i++) {
-      inst.setMatrixAt(i, _tMat.copy(treeMatrices[i]).multiply(child.matrix));
+  // Deterministic seed for structures
+  const seed = Math.abs(Math.sin(cx * 12.9898 + cz * 78.233) * 43758.5453) % 1;
+
+  // 1. Terrain
+  const tGeo = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE, 80, 80);
+  tGeo.rotateX(-Math.PI / 2);
+  const tp = tGeo.attributes.position;
+  const colors = [];
+  for(let i=0; i<tp.count; i++) {
+    const vx = tp.getX(i) + xOffset;
+    const vz = tp.getZ(i) + zOffset;
+    const h = getH({x: vx, z: vz});
+    tp.setY(i, h);
+
+    const c = new THREE.Color();
+    if (h > 100) c.setHex(0xffffff);
+    else if (h > 60) c.setHex(0x888888);
+    else if (h < 0) c.setHex(0x2a3a2a);
+    else if (h < 4.5) c.setHex(0x5c4033);
+    else c.setHex(0x5a7a5a);
+
+    // Path Logic: Lerp color based on distance for a smoother, non-blotchy trail
+    if (h >= 0 && h < 60) {
+      const pZ = Math.sin(vx * 0.01) * 60 + Math.cos(vx * 0.005) * 40;
+      const distToPath = Math.abs(vz - pZ);
+      // pathFactor is 1 near center (dist < 4), blends to 0 quickly (dist > 7.5)
+      let pathFactor = 1.0 - THREE.MathUtils.smoothstep(distToPath, 4, 7.5);
+      pathFactor *= (1.0 - THREE.MathUtils.smoothstep(h, 25, 35)); // Fade out on mountains more decisively
+      if (pathFactor > 0) {
+        c.lerp(new THREE.Color(0x5d4037), pathFactor);
+      }
     }
-    // ensure GPU sees the instance matrices we wrote
-    inst.instanceMatrix.needsUpdate = true;
-    if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
-    treeInstancedMeshes.push(inst);
-    scene.add(inst);
+    colors.push(c.r, c.g, c.b);
   }
-});
+  tGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  tGeo.computeVertexNormals();
+  const terrainMesh = new THREE.Mesh(tGeo, new THREE.MeshLambertMaterial({vertexColors: true}));
+  terrainMesh.receiveShadow = true;
+  terrainMesh.position.set(xOffset, 0, zOffset);
+  group.add(terrainMesh);
+  staticObjects.push(terrainMesh);
 
-for (let i = 0; i < 60; i++) { /* Reduced from 240 to prevent infinite loop */
-  let cx, cz, ch, slope, safety = 0;
-  do {
-    cx = (Math.random() - 0.5) * MAP_SIZE;
-    cz = (Math.random() - 0.5) * MAP_SIZE;
-    ch = getH({ x: cx, z: cz });
-    const d = 16; /* Increased sample distance for slope calc */
-    const s1 = Math.abs(getH({ x: cx + d, z: cz }) - getH({ x: cx - d, z: cz })) / (d * 2); 
-    const s2 = Math.abs(getH({ x: cx, z: cz + d }) - getH({ x: cx, z: cz - d })) / (d * 2);
-    slope = Math.max(s1, s2);
-    safety++;
-  } while ((Math.abs(cx) < 240 && Math.abs(cz) < 240 || ruins.some(r => r.pos.distanceTo(new THREE.Vector3(cx, 0, cz)) < 140) || ch < 5 || slope > 0.06) && safety < 100); 
-  
-  if (safety < 100) makeCastleRuin({ x: cx, z: cz });
+  // 2. Trees (Instanced per chunk)
+  const chunkTrees = [];
+  const MAX_TREE_ATTEMPTS = 200; // Increased attempts to allow for dense forests
+  for(let i=0; i<MAX_TREE_ATTEMPTS; i++) {
+    const tx = xOffset + (Math.random() - 0.5) * CHUNK_SIZE;
+    const tz = zOffset + (Math.random() - 0.5) * CHUNK_SIZE;
+
+    // Forest Noise: determines if this area is a forest, a clearing, or a meadow
+    // Using lower frequencies for larger, more natural patches
+    const fNoise = Math.sin(tx * 0.008) * Math.cos(tz * 0.008) + Math.sin(tx * 0.02) * 0.2;
+    const densityThreshold = 0.45; // Adjust this to make forests more or less common
+    if (Math.random() > (fNoise + densityThreshold)) continue;
+
+    const th = getH({x: tx, z: tz});
+    if (th > 3 && th < 30 && (Math.abs(tx) > 40 || Math.abs(tz) > 40)) {
+      _tObj.position.set(tx, th, tz);
+      _tObj.rotation.y = Math.random() * Math.PI * 2;
+      _tObj.scale.setScalar(0.7 + Math.random() * 0.7);
+      _tObj.updateMatrix();
+      chunkTrees.push(_tObj.matrix.clone());
+    }
+  }
+
+  treeTemplate.traverse(child => {
+    if (child.isMesh && chunkTrees.length > 0) {
+      const inst = new THREE.InstancedMesh(child.geometry, child.material, chunkTrees.length);
+      inst.castShadow = true;
+      inst.userData.isTree = true;
+      for (let i = 0; i < chunkTrees.length; i++) {
+        inst.setMatrixAt(i, _tMat.copy(chunkTrees[i]).multiply(child.matrix));
+      }
+      group.add(inst);
+    }
+  });
+
+  // 3. Water (One per chunk or one giant shifting plane)
+  const waterM = new THREE.Mesh(new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE), new THREE.MeshLambertMaterial({color: 0x153565, transparent: true, opacity: 0.7}));
+  waterM.rotateX(-Math.PI/2);
+  waterM.position.set(xOffset, -0.5, zOffset);
+  group.add(waterM);
+
+  // 4. Bridges (Improved water crossing detection along path)
+  let inWater = false;
+  let waterStart = 0;
+  for (let step = -CHUNK_SIZE/2; step <= CHUNK_SIZE/2; step += 5) {
+    const wx = xOffset + step;
+    const wz = Math.sin(wx * 0.01) * 60 + Math.cos(wx * 0.005) * 40;
+    
+    const inChunkZ = (wz >= zOffset - CHUNK_SIZE/2 && wz <= zOffset + CHUNK_SIZE/2);
+    const h = getH({x: wx, z: wz});
+    const isWater = h < 3 && inChunkZ;
+
+    if (isWater && !inWater) {
+      inWater = true;
+      waterStart = step;
+    } else if (inWater && (!isWater || step >= CHUNK_SIZE/2 - 5)) {
+      const midStep = (waterStart + step) / 2;
+      const bX = xOffset + midStep;
+      const bZ = Math.sin(bX * 0.01) * 60 + Math.cos(bX * 0.005) * 40;
+      const angle = Math.atan2(Math.sin((bX+1)*0.01)*60+Math.cos((bX+1)*0.005)*40 - bZ, 1);
+      makeBridge({x: bX, z: bZ}, group, angle);
+      inWater = false;
+    }
+  }
+
+  // 4. Structures
+  if (cx === 0 && cz === 0) {
+    makeTavern({x: 0, z: 0}, group);
+  } else if (seed < 0.04) {
+    makeCastleRuin({x: xOffset + (seed - 0.02) * 200, z: zOffset + (seed - 0.02) * 200}, group);
+  }
+
+  // 5. Mobs (Spawn only away from center for safety)
+  if (Math.abs(cx) > 1 || Math.abs(cz) > 1) {
+    const gobCount = Math.floor(seed * 6);
+    for(let i=0; i<gobCount; i++) {
+      const gx = xOffset + (Math.random() - 0.5) * CHUNK_SIZE;
+      const gz = zOffset + (Math.random() - 0.5) * CHUNK_SIZE;
+      const gob = spawnGoblin(gx, gz);
+      if(gob) chunkGoblins.push(gob);
+    }
+    if (seed < 0.02) {
+      const tr = spawnTroll(xOffset + (Math.random() - 0.5) * 100, zOffset + (Math.random() - 0.5) * 100);
+      if(tr) chunkTrolls.push(tr);
+    }
+  }
+
+  scene.add(group);
+
+  return {
+    group,
+    dispose: () => {
+      scene.remove(group);
+      
+      group.traverse(child => {
+        const sIdx = staticObjects.indexOf(child);
+        if (sIdx !== -1) staticObjects.splice(sIdx, 1);
+        if (child.isMesh && child.geometry) child.geometry.dispose();
+      });
+
+      // Remove from global ruins tracking
+      for(let i = ruins.length - 1; i >= 0; i--) {
+        if(ruins[i].parentChunkGroup === group) ruins.splice(i, 1);
+      }
+
+      // Remove mobs
+      chunkGoblins.forEach(g => {
+        const idx = goblins.indexOf(g);
+        if (idx !== -1) { scene.remove(g.mesh.group); goblins.splice(idx, 1); }
+      });
+      chunkTrolls.forEach(t => {
+        const idx = trolls.indexOf(t);
+        if (idx !== -1) { scene.remove(t.mesh.group); trolls.splice(idx, 1); }
+      });
+
+      tGeo.dispose();
+    }
+  };
 }
 
-function makeTavern(pos) {
+function updateChunks() {
+  const px = Math.floor(playerPos.x / CHUNK_SIZE);
+  const pz = Math.floor(playerPos.z / CHUNK_SIZE);
+
+  // Load new chunks
+  for (let x = px - VIEW_DISTANCE; x <= px + VIEW_DISTANCE; x++) {
+    for (let z = pz - VIEW_DISTANCE; z <= pz + VIEW_DISTANCE; z++) {
+      const key = `${x},${z}`;
+      if (!activeChunks.has(key)) {
+        activeChunks.set(key, createChunk(x, z));
+      }
+    }
+  }
+
+  // Unload old chunks
+  for (const [key, chunk] of activeChunks) {
+    const [cx, cz] = key.split(',').map(Number);
+    if (Math.abs(cx - px) > VIEW_DISTANCE || Math.abs(cz - pz) > VIEW_DISTANCE) {
+      chunk.dispose();
+      activeChunks.delete(key);
+    }
+  }
+}
+
+function makeBridge(pos, parentGroup, angle) {
+  const bridgeMat = new THREE.MeshLambertMaterial({color: 0x4a2e19});
+  const group = new THREE.Group();
+  const bridgeY = 1.0;
+  group.position.set(pos.x, bridgeY, pos.z);
+  group.rotation.y = -angle; 
+  
+  // Main deck
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(16, 0.6, 11), bridgeMat);
+  deck.castShadow = true;
+  deck.receiveShadow = true;
+  group.add(deck);
+  staticObjects.push(deck); // Enable collision/camera raycasting
+
+  // Rails
+  [-5.2, 5.2].forEach(zSide => {
+    // Horizontal handrail
+    const handrail = new THREE.Mesh(new THREE.BoxGeometry(18.2, 0.4, 0.6), bridgeMat);
+    handrail.position.set(0, 1.8, zSide);
+    handrail.castShadow = true;
+    group.add(handrail);
+    staticObjects.push(handrail);
+
+    // Vertical posts along the bridge side
+    for (let xPos = -7.5; xPos <= 7.5; xPos += 3.75) {
+      const postHeight = 35; // Tall enough to reach the deepest riverbeds
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.6, postHeight, 0.6), bridgeMat);
+      post.position.set(xPos, -postHeight/2 + 1.8, zSide);
+      post.castShadow = true;
+      group.add(post);
+      staticObjects.push(post);
+    }
+  });
+  parentGroup.add(group);
+}
+
+function makeTavern(pos, parentGroup) {
   const h = getH(pos);
   const vPos = new THREE.Vector3(pos.x, h, pos.z);
   const woodM = new THREE.MeshLambertMaterial({color: 0x4a2e19});
   const stoneM = new THREE.MeshLambertMaterial({color: 0x666666});
   const group = new THREE.Group();
   group.position.copy(vPos);
-  scene.add(group);
+  parentGroup.add(group);
   staticObjects.push(group);
   
-  const rData = { pos: vPos.clone(), parts: [] };
+  const rData = { pos: vPos.clone(), parts: [], parentChunkGroup: parentGroup };
 
   const W = 32, D = 24, wallH = 8;
 
@@ -496,14 +699,9 @@ function makeTavern(pos) {
   rData.parts.push({ world: vPos.clone().add(new THREE.Vector3(-W/4, wallH + 2, 0)), rad: 10, mesh: roofL });
   rData.parts.push({ world: vPos.clone().add(new THREE.Vector3(W/4, wallH + 2, 0)), rad: 10, mesh: roofR });
 
-  // Interior lights for rooms
-  const l1 = new THREE.PointLight(0xffaa44, 2.5, 30); l1.position.set(-6, 5, 0); group.add(l1);
-  const l2 = new THREE.PointLight(0xffaa44, 2, 20); l2.position.set(10, 5, -6); group.add(l2);
-  const l3 = new THREE.PointLight(0xffaa44, 2, 20); l3.position.set(10, 5, 6); group.add(l3);
-
   ruins.push(rData);
+  return rData;
 }
-makeTavern({x: 0, z: 0});
 
 const skinM  = new THREE.MeshLambertMaterial({color:0xf0c8a0});
 const robeM  = new THREE.MeshLambertMaterial({color:0x555555});
@@ -524,9 +722,6 @@ function cy(r,h,m,s=8){const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,s
 function cone(rb,rt,h,m,s=8){const o=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,s),m);o.castShadow=true;return o;}
 function sp(r,m,s=12){const o=new THREE.Mesh(new THREE.SphereGeometry(r,s,s),m);o.castShadow=true;return o;}
 const char = new THREE.Group(); scene.add(char);
-const playerLight = new THREE.PointLight(0xff9944, 1.5, 30);
-playerLight.position.set(0, 2, 0);
-char.add(playerLight);
 const torso = cone(.28, .36, .65, robeM); torso.position.y=1.1; char.add(torso);
 const hips  = cone(.55, .28, .8, robeM); hips.position.y=.7; char.add(hips);
 const head  = sp(.18,skinM); head.position.y=1.54; char.add(head);
@@ -564,60 +759,54 @@ rElbow.add(staffPivot);
 staffPivot.add(staffGroup);
 staffGroup.position.set(.1,-.28,.0);
 staffGroup.rotation.set(0,0,0);
+function checkTreeHits(impactPos, radius, damage) {
+  activeChunks.forEach((chunk, chunkKey) => {
+    const treeParts = chunk.group.children.filter(c => c.isInstancedMesh && c.userData.isTree);
+    if (treeParts.length === 0) return;
 
-const flyingTrees = [];
-function checkTreeHits(impactPos, radius, sourcePos) {
-  const _v3 = new THREE.Vector3();
-  const zeroScale = new THREE.Matrix4().makeScale(0, 0, 0);
+    // Use the first instanced mesh as the position reference for the whole tree
+    const ref = treeParts[0];
+    for (let i = 0; i < ref.count; i++) {
+      ref.getMatrixAt(i, _tMat);
+      _v3_util.setFromMatrixPosition(_tMat);
+      if (_v3_util.y < -100) continue; 
 
-  for (let i = 0; i < treeMatrices.length; i++) {
-    _v3.setFromMatrixPosition(treeMatrices[i]);
-    // If Y is already lowered, it means this tree was already hit
-    if (_v3.y < -500) continue;
+      const d = _v3_util.distanceTo(impactPos);
+      if (d < radius) {
+        const treeId = `${chunkKey}_${i}`;
+        let hp = treeHealth.get(treeId) ?? 100;
+        hp -= damage;
 
-    const d = _v3.distanceTo(impactPos);
-    if (d < radius) {
-      // 1. Hide the instance in all meshes (trunk, leaves, etc)
-      treeInstancedMeshes.forEach(inst => {
-        inst.setMatrixAt(i, zeroScale);
-        inst.instanceMatrix.needsUpdate = true;
-      });
+        // Visual hit feedback (Blink white)
+        treeParts.forEach(part => {
+          if (!part.instanceColor) {
+            part.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(part.count * 3), 3);
+            for(let k=0; k<part.count; k++) part.setColorAt(k, new THREE.Color(1,1,1));
+          }
+          // Set color to overbright white
+          part.setColorAt(i, new THREE.Color(5, 5, 5));
+          part.instanceColor.needsUpdate = true;
+          treeBlinks.push({ mesh: part, index: i, time: 0.12 });
+        });
+        
+        if (hp <= 0) {
+          const dropPos = _v3_util.clone();
+          const hideMatrix = new THREE.Matrix4().makeTranslation(0, -1000, 0);
+          
+          // Move ALL mesh parts of this tree instance below ground simultaneously
+          treeParts.forEach(part => {
+            part.setMatrixAt(i, hideMatrix);
+            part.instanceMatrix.needsUpdate = true;
+          });
 
-      // 2. Create a "flying" version
-      const fly = treeTemplate.clone();
-      fly.position.copy(_v3);
-      scene.add(fly);
-
-      const push = _v3.clone().sub(sourcePos).normalize();
-      const vel = push.multiplyScalar(15 + Math.random() * 15);
-      vel.y = 10 + Math.random() * 20;
-
-      flyingTrees.push({
-        obj: fly,
-        vel: vel,
-        rot: new THREE.Vector3(Math.random() * 6, Math.random() * 6, Math.random() * 6),
-        age: 0
-      });
-
-      // 3. Mark this matrix as "used" so we don't hit it again
-      treeMatrices[i].makeTranslation(0, -1000, 0);
+          spawnLumberStack(dropPos);
+          treeHealth.delete(treeId);
+        } else {
+          treeHealth.set(treeId, hp);
+        }
+      }
     }
-  }
-}
-function updateFlyingTrees(dt) {
-  for (let i = flyingTrees.length - 1; i >= 0; i--) {
-    const ft = flyingTrees[i];
-    ft.age += dt;
-    ft.vel.y -= 35 * dt; // Gravity
-    ft.obj.position.addScaledVector(ft.vel, dt);
-    ft.obj.rotation.x += ft.rot.x * dt;
-    ft.obj.rotation.y += ft.rot.y * dt;
-    ft.obj.rotation.z += ft.rot.z * dt;
-    if (ft.age > 5 || ft.obj.position.y < -100) {
-      scene.remove(ft.obj);
-      flyingTrees.splice(i, 1);
-    }
-  }
+  });
 }
 
 function checkRuinHits(impactPos, radius, sourcePos) {
@@ -641,27 +830,6 @@ function checkRuinHits(impactPos, radius, sourcePos) {
         // Remove from structure group
         if (p.mesh.parent) p.mesh.parent.remove(p.mesh);
         
-        // Create flying debris
-        const flyGroup = new THREE.Group();
-        const debris = p.mesh.clone();
-        debris.position.set(0,0,0);
-        debris.rotation.set(0,0,0);
-        flyGroup.add(debris);
-        flyGroup.position.copy(worldPos);
-        flyGroup.quaternion.copy(worldQuat);
-        scene.add(flyGroup);
-
-        const push = worldPos.clone().sub(sourcePos).normalize();
-        const vel = push.multiplyScalar(15 + Math.random() * 25);
-        vel.y = 15 + Math.random() * 25;
-
-        flyingTrees.push({
-          obj: flyGroup,
-          vel: vel,
-          rot: new THREE.Vector3(Math.random()*6, Math.random()*6, Math.random()*6),
-          age: 0
-        });
-
         r.parts.splice(i, 1);
       }
     }
@@ -748,7 +916,7 @@ function updateTornadoes(dt) {
     // Interaction: Affect environment and enemies
     if (t.timer % 0.15 < 0.05) {
       // Check at the maximum effective radius once per pulse
-      checkTreeHits(t.pos, 45, t.pos);
+      checkTreeHits(t.pos, 45, 15);
       checkRuinHits(t.pos, 45, t.pos);
       checkLightningHitsGoblins(t.pos, 45, 3); // Continuous damage in wider radius
       checkLightningHitsTrolls(t.pos, 45, 5);
@@ -767,7 +935,7 @@ function getMouseGroundTarget() {
   const raycaster = new THREE.Raycaster();
   const mouseNDC = new THREE.Vector2((mouseX / window.innerWidth) * 2 - 1, -(mouseY / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(mouseNDC, camera);
-  const intersects = raycaster.intersectObject(terrain);
+  const intersects = raycaster.intersectObjects(staticObjects);
   if (intersects.length > 0) return intersects[0].point;
   return raycaster.ray.origin.clone().addScaledVector(raycaster.ray.direction, 50);
 }
@@ -855,6 +1023,7 @@ function updateLightning(dt){
   }
 }
 let camYaw=Math.PI, camPitch=0.3, camDist=15;
+let targetYaw = 0;
 let camShake=0;
 let selectedSpell = 1;
 
@@ -941,7 +1110,7 @@ function triggerSlam(){
   setTimeout(()=>{
     checkSlamHitsGoblins();
     checkSlamHitsTrolls();
-    checkTreeHits(playerPos, 8, playerPos);
+    checkTreeHits(playerPos, 8, 40);
   }, 250);
 }
 
@@ -983,7 +1152,7 @@ function triggerLightning(holdTime){
   
   checkLightningHitsGoblins(targetPos, range ? 9.0 : 4.5, range ? 35 : 15);
   checkLightningHitsTrolls(targetPos, range ? 14.0 : 7.0, range ? 60 : 30);
-  checkTreeHits(targetPos, range ? 20 : 10, playerPos);
+  checkTreeHits(targetPos, range ? 20 : 10, 60);
 
   // Multiple strikes based on hold time: 1 + 1 per second, capped at 20 strikes total
   const totalStrikes = Math.min(20, Math.floor(holdTime) + 1);
@@ -999,7 +1168,7 @@ function triggerLightning(holdTime){
       spawnLightning(skyOrigin2, scatter, range);
       checkLightningHitsGoblins(scatter, range ? 9.0 : 4.5, range ? 35 : 15);
       checkLightningHitsTrolls(scatter, range ? 14.0 : 7.0, range ? 60 : 30);
-      checkTreeHits(scatter, range ? 20 : 10, playerPos);
+      checkTreeHits(scatter, range ? 20 : 10, 60);
     }, delay);
   }
 }
@@ -1038,10 +1207,8 @@ function makeTrollMesh(){
   return { group:g, lArm, rArm, lLeg, rLeg, club };
 }
 const trolls = [];
-function spawnTroll() {
-  const tx = (Math.random() - 0.5) * MAP_SIZE;
-  const tz = (Math.random() - 0.5) * MAP_SIZE;
-  if (Math.abs(tx) < 150 && Math.abs(tz) < 150) return;
+function spawnTroll(tx, tz) {
+  if (Math.abs(tx) < 80 && Math.abs(tz) < 80) return null;
   const th = Math.max(getH({ x: tx, z: tz }), 0);
   const mesh = makeTrollMesh();
   const finalPos = new THREE.Vector3(tx, th, tz);
@@ -1053,8 +1220,9 @@ function spawnTroll() {
     patrolTarget: finalPos.clone().add(new THREE.Vector3((Math.random()-0.5)*100,0,(Math.random()-0.5)*100)),
     facingYaw: Math.random()*Math.PI*2, deathTimer: 0
   });
+  return trolls[trolls.length - 1];
 }
-for(let i=0; i<60; i++) spawnTroll();
+
 function damageTroll(tr, dmg){
   if(tr.dead) return;
   tr.hp -= dmg;
@@ -1174,16 +1342,15 @@ function makeGoblinMesh(){
   const clubHandle = new THREE.Mesh(new THREE.CylinderGeometry(.03,.03,.5,5), goblinWeapM); clubHandle.position.y=-.25; club.add(clubHandle);
   const clubHead = new THREE.Mesh(new THREE.SphereGeometry(.1,6,5), goblinWeapM); clubHead.position.y=-.52; club.add(clubHead);
 
+  g.scale.setScalar(1.7); // Scale goblin to be as large as the main character
   return { group:g, lArm, rArm, lLeg, rLeg, lKnee, rKnee, lFArm, rFArm, club };
 }
 
 const GOBLIN_IDLE=0, GOBLIN_PATROL=1, GOBLIN_CHASE=2, GOBLIN_ATTACK=3, GOBLIN_HIT=4, GOBLIN_DEAD=5;
 const goblins=[];
 
-function spawnGoblin() {
-  const gx = (Math.random() - 0.5) * MAP_SIZE;
-  const gz = (Math.random() - 0.5) * MAP_SIZE;
-  if (Math.abs(gx) < 30 && Math.abs(gz) < 30) return;
+function spawnGoblin(gx, gz) {
+  if (Math.abs(gx) < 51 && Math.abs(gz) < 51) return null; // Scaled exclusion zone (30 * 1.7)
   const gh = Math.max(getH({ x: gx, z: gz }), 0);
   const mesh=makeGoblinMesh();
   const finalPos = new THREE.Vector3(gx, gh, gz);
@@ -1207,11 +1374,9 @@ function spawnGoblin() {
     dead:false,
     deathTimer:0,
   });
+  return goblins[goblins.length - 1];
 }
 
-for(let i=0;i<800;i++){ /* Reduced goblin count for performance */
-  spawnGoblin();
-}
 function applyGoblinWalk(m, t, spd){
   const s=Math.min(spd/3,1);
   m.lLeg.rotation.x=Math.sin(t)*.7*s;
@@ -1312,27 +1477,27 @@ function updateGoblins(dt, playerPos){
     if(!detailed){
       if(gb.state!==GOBLIN_ATTACK){
         if(distToPlayer<ATTACK_RANGE && gb.attackCooldown<=0){
-          gb.state=GOBLIN_ATTACK; gb.animT=0; gb.stateTimer=0;
-        } else if(distToPlayer<DETECT_RANGE){
+          gb.state=GOBLIN_ATTACK; gb.animT=0; gb.stateTimer=0; // ATTACK_RANGE = 1.8 * 1.7 = 3.06
+        } else if(distToPlayer<37.4){ // DETECT_RANGE = 22 * 1.7 = 37.4
           gb.state=GOBLIN_CHASE;
-        } else if(distToPlayer>CHASE_RANGE && gb.state===GOBLIN_CHASE){
+        } else if(distToPlayer>51 && gb.state===GOBLIN_CHASE){ // CHASE_RANGE = 30 * 1.7 = 51
           gb.state=GOBLIN_PATROL; gb.stateTimer=0;
         }
       }
 
       if(gb.state===GOBLIN_PATROL){
         if(gb.stateTimer>4||gb.pos.distanceTo(gb.patrolTarget)<1.5){
-          gb.patrolTarget.set(gb.pos.x + (Math.random()-0.5)*30, 0, gb.pos.z + (Math.random()-0.5)*30);
+          gb.patrolTarget.set(gb.pos.x + (Math.random()-0.5)*51, 0, gb.pos.z + (Math.random()-0.5)*51); // Patrol target range scaled (30 * 1.7)
           gb.stateTimer=0;
         }
         const dist = gb.pos.distanceTo(gb.patrolTarget);
-        if(dist>0.5){
-          gb.vel.subVectors(gb.patrolTarget, gb.pos).normalize().multiplyScalar(1.8);
+        if(dist>0.85){ // checkRuinCollision radius scaled (0.5 * 1.7)
+          gb.vel.subVectors(gb.patrolTarget, gb.pos).normalize().multiplyScalar(3.06); // Patrol speed scaled (1.8 * 1.7)
         } else { gb.vel.multiplyScalar(0.8); }
       } else if(gb.state===GOBLIN_CHASE){
         const dist = gb.pos.distanceTo(playerPos);
-        if(dist>0.1){
-          gb.vel.subVectors(playerPos, gb.pos).normalize().multiplyScalar(4.5);
+        if(dist>0.17){ // Small threshold scaled (0.1 * 1.7)
+          gb.vel.subVectors(playerPos, gb.pos).normalize().multiplyScalar(7.65); // Chase speed scaled (4.5 * 1.7)
         }
       } else if(gb.state===GOBLIN_ATTACK){
         gb.vel.multiplyScalar(0.7);
@@ -1340,6 +1505,7 @@ function updateGoblins(dt, playerPos){
 
       gb.pos.addScaledVector(gb.vel, dt);
       checkRuinCollision(gb.pos, 0.5);
+      checkRuinCollision(gb.pos, 0.85); // Scaled collision radius (0.5 * 1.7)
       gb.pos.y = Math.max(getH(gb.pos), 0);
 
       gb.mesh.group.position.copy(gb.pos);
@@ -1352,29 +1518,29 @@ function updateGoblins(dt, playerPos){
     // Detailed AI/animation update (runs less frequently)
     if(gb.state!==GOBLIN_ATTACK){
       if(distToPlayer<ATTACK_RANGE && gb.attackCooldown<=0){
-        gb.state=GOBLIN_ATTACK; gb.animT=0; gb.stateTimer=0;
-      } else if(distToPlayer<DETECT_RANGE){
+        gb.state=GOBLIN_ATTACK; gb.animT=0; gb.stateTimer=0; // ATTACK_RANGE = 1.8 * 1.7 = 3.06
+      } else if(distToPlayer<37.4){ // DETECT_RANGE = 22 * 1.7 = 37.4
         gb.state=GOBLIN_CHASE;
-      } else if(distToPlayer>CHASE_RANGE && gb.state===GOBLIN_CHASE){
+      } else if(distToPlayer>51 && gb.state===GOBLIN_CHASE){ // CHASE_RANGE = 30 * 1.7 = 51
         gb.state=GOBLIN_PATROL; gb.stateTimer=0;
       }
     }
     let speed=0;
     if(gb.state===GOBLIN_PATROL){
       if(gb.stateTimer>4||gb.pos.distanceTo(gb.patrolTarget)<1.5){
-        gb.patrolTarget.set(gb.pos.x + (Math.random()-0.5)*30, 0, gb.pos.z + (Math.random()-0.5)*30);
+        gb.patrolTarget.set(gb.pos.x + (Math.random()-0.5)*51, 0, gb.pos.z + (Math.random()-0.5)*51); // Patrol target range scaled (30 * 1.7)
         gb.stateTimer=0;
       }
       const dist = gb.pos.distanceTo(gb.patrolTarget);
-      if(dist>0.5){
-        gb.vel.subVectors(gb.patrolTarget, gb.pos).normalize().multiplyScalar(1.8);
-        speed = 1.8;
+      if(dist>0.85){ // checkRuinCollision radius scaled (0.5 * 1.7)
+        gb.vel.subVectors(gb.patrolTarget, gb.pos).normalize().multiplyScalar(3.06); // Patrol speed scaled (1.8 * 1.7)
+        speed = 3.06;
       } else { gb.vel.multiplyScalar(0.8); }
     } else if(gb.state===GOBLIN_CHASE){
       const dist = gb.pos.distanceTo(playerPos);
-      if(dist>0.1){
-        gb.vel.subVectors(playerPos, gb.pos).normalize().multiplyScalar(4.5);
-        speed=4.5;
+      if(dist>0.17){ // Small threshold scaled (0.1 * 1.7)
+        gb.vel.subVectors(playerPos, gb.pos).normalize().multiplyScalar(7.65); // Chase speed scaled (4.5 * 1.7)
+        speed=7.65;
       }
     } else if(gb.state===GOBLIN_ATTACK){
       gb.vel.multiplyScalar(0.7);
@@ -1383,18 +1549,18 @@ function updateGoblins(dt, playerPos){
       const toPlayer = playerPos.clone().sub(gb.pos);
       gb.facingYaw = Math.atan2(toPlayer.x, toPlayer.z);
 
-      if(gb.animT>0.5 && gb.animT<0.6 && gb.attackCooldown<=0){
-        if(distToPlayer<ATTACK_RANGE+.3){ damagePlayer(8); }
-        gb.attackCooldown=2.2;
+      if(gb.animT>0.5 && gb.animT<0.6 && gb.attackCooldown<=0){ // Attack animation timing
+        if(distToPlayer<3.06 + 0.51){ damagePlayer(8); } // ATTACK_RANGE + 0.3 scaled (1.8 * 1.7 + 0.3 * 1.7)
+        gb.attackCooldown=2.2; // Attack cooldown remains the same for balance
       }
       if(gb.animT>=1){
-        gb.state=GOBLIN_CHASE; gb.animT=0;
+        gb.state=GOBLIN_CHASE; gb.animT=0; // Transition to chase after attack
         gb.mesh.rArm.rotation.x=0; gb.mesh.rFArm.rotation.x=0;
       }
     }
 
-    gb.pos.addScaledVector(gb.vel, dt);
-    checkRuinCollision(gb.pos, 0.5);
+    gb.pos.addScaledVector(gb.vel, dt); // Apply velocity
+    checkRuinCollision(gb.pos, 0.85); // Scaled collision radius (0.5 * 1.7)
     gb.pos.y = Math.max(getH(gb.pos), 0);
 
     gb.mesh.group.position.copy(gb.pos);
@@ -1407,7 +1573,7 @@ function updateGoblins(dt, playerPos){
 
     if(gb.state!==GOBLIN_ATTACK){
       gb.animT+=dt*(speed>2?8:5);
-      applyGoblinWalk(gb.mesh,gb.animT,speed);
+      applyGoblinWalk(gb.mesh,gb.animT,speed/1.7); // Scale speed for animation to keep it consistent
     }
   });
 }
@@ -1415,14 +1581,9 @@ function updateGoblins(dt, playerPos){
 const cameraTarget = new THREE.Vector3();
 const cameraLerpSpeed = 0.12;
 camera.position.set(0, 10, 10);
-
-const playerPos = new THREE.Vector3(0, 0, 0);
-playerPos.y = Math.max(getH(playerPos), 0) + 1.2;
-const velocity=new THREE.Vector3();
 const targetVelocity = new THREE.Vector3();
 let verticalVel = 0;
 let facingYaw=0, animT=0, moving=false, isGrounded=true;
-let targetYaw = 0;
 const clock=new THREE.Clock();
 
 // Camera smoothing variables
@@ -1457,7 +1618,7 @@ function animate(){
   const dt=Math.min(clock.getDelta(),.05);
 
   const running=keys['ShiftLeft']||keys['ShiftRight'];
-  const speed=running?18:7.5; // Adjusted for better feel
+  const speed=running?1800:12; // Sprint 100x faster, Walk slightly faster
   const acceleration = running ? 10 : 15;
   const friction = 12;
 
@@ -1511,12 +1672,25 @@ function animate(){
   if(moving&&spd>.3&&isGrounded){animT+=dt*(running?10:6);applyWalk(animT,spd);}
   else resetWalk();
   updateSlamAnim(dt);
-  updateFlyingTrees(dt);
   updateLightning(dt);
   updateTornadoes(dt);
   updateGoblins(dt, playerPos);
   updateTrolls(dt, playerPos);
   updateEnvironment(dt);
+  updateLumberPickup();
+
+  // Handle Tree Blinking Reversion
+  for (let i = treeBlinks.length - 1; i >= 0; i--) {
+    const b = treeBlinks[i];
+    b.time -= dt;
+    if (b.time <= 0) {
+      b.mesh.setColorAt(b.index, new THREE.Color(1, 1, 1));
+      b.mesh.instanceColor.needsUpdate = true;
+      treeBlinks.splice(i, 1);
+    }
+  }
+
+  updateChunks();
 
   // Force camera yaw to stay behind the player's current facing rotation
   camYaw = facingYaw + Math.PI;
@@ -1528,8 +1702,8 @@ function animate(){
   
   const camRayDir = new THREE.Vector3().subVectors(desiredCamPos, lookAtPos).normalize();
   camRaycaster.set(lookAtPos, camRayDir);
-  camRaycaster.far = camDist;
-  const camHits = camRaycaster.intersectObjects(staticObjects, true);
+  camRaycaster.far = camDist; 
+  const camHits = camRaycaster.intersectObjects(staticObjects, false);
   
   if (camHits.length > 0) {
     desiredCamPos.copy(camHits[0].point).addScaledVector(camRayDir, -0.5);
@@ -1553,7 +1727,18 @@ function animate(){
   camera.lookAt(currentLookAt);
   renderer.render(scene, camera);
 }
-Object.assign(sun.shadow.camera,{far:MAP_SIZE*2,left:-MAP_SIZE*.75,right:MAP_SIZE*.75,top:MAP_SIZE*.75,bottom:-MAP_SIZE*.75});
+
+function updateLumberPickup() {
+  for (let i = lumberStacks.length - 1; i >= 0; i--) {
+    const stack = lumberStacks[i];
+    if (playerPos.distanceTo(stack.pos) < 3.5) {
+      scene.remove(stack.mesh);
+      lumberStacks.splice(i, 1);
+      updateLumber(5);
+    }
+  }
+}
+
 window.addEventListener('resize',()=>{
   camera.aspect=window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
@@ -1580,6 +1765,8 @@ camera.lookAt(currentLookAt);
 // Show the button once the initial scene setup is complete
 loadingIndicator.style.display = 'none';
 beginButton.style.display = 'block';
+
+updateChunks(); // Initial load performed after button is ready to prevent black screen hang
 
 beginButton.addEventListener('click', () => {
   loadingScreen.classList.add('hidden'); // Start fade out
