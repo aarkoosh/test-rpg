@@ -34,6 +34,7 @@
       position: absolute;
       left: 16px;
       top: 16px;
+      bottom: 16px;
       width: 360px;
       max-width: calc(100vw - 32px);
       display: flex;
@@ -50,7 +51,6 @@
       border-radius: 8px;
       box-shadow: 0 20px 40px rgba(0,0,0,0.65), inset 0 0 15px rgba(255,255,255,0.03);
       border: 1px solid var(--color-border);
-      border-left: 5px solid var(--color-accent);
       pointer-events: auto;
       display: flex;
       flex-direction: column;
@@ -201,8 +201,13 @@
       box-shadow: 0 0 15px rgba(251, 191, 36, 0.4);
     }
 
+    #chronicle-ui {
+      flex: 1;
+      min-height: 0;
+    }
     #log {
-      height: 120px;
+      flex: 1;
+      min-height: 0;
       overflow-y: auto;
       font-size: 11px;
       display: flex;
@@ -210,6 +215,28 @@
       line-height: 1.5;
       color: #94a3b8;
     }
+    #panel-resize-handle {
+      height: 10px;
+      margin-top: auto;
+      cursor: ns-resize;
+      background: #2a3a4e;
+      border-radius: 4px;
+      flex-shrink: 0;
+      transition: background 0.2s;
+      border-top: 1px solid #3a4a5e;
+      border-bottom: 1px solid #3a4a5e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #panel-resize-handle::after {
+      content: "≡";
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1;
+    }
+    #panel-resize-handle:hover { background: #3a4a5e; }
+    #panel-resize-handle:hover::after { color: #94a3b8; }
     #log::-webkit-scrollbar { width: 4px; }
     #log::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
 
@@ -433,7 +460,8 @@
         padding: 6px 12px;
       }
       #log {
-        height: 70px;
+        flex: 1;
+        min-height: 0;
       }
     }
   </style>
@@ -471,19 +499,19 @@
 
     <div id="hero-ui" class="panel">
       <div class="stats-container">
-        <div class="settings-section-title">Ash "The Black Knight"</div>
-        <div class="stat-row"><span>Infamy (Scars):</span><span class="stat-val"><span id="xp">0</span></span></div>
-        <div class="stat-row"><span>Action Points:</span><span class="stat-val" style="color:#60a5fa;"><span id="ap">4</span> / <span id="map">4</span></span></div>
+        <div class="settings-section-title" style="gap:6px;">Ash "The Black Knight"</div>
+        <div class="stat-row"><span>Actions:</span><span class="stat-val" style="color:#60a5fa;"><span id="ap">4</span> / <span id="map">4</span></span></div>
         <div class="stat-row"><span>Health:</span><span class="stat-val" style="color:#10b981;"><span id="hp">100</span> / <span id="mhp">100</span></span></div>
         <div class="stat-row"><span>Armor:</span><span class="stat-val" style="color:#94a3b8;"><span id="armor">0</span></span></div>
         <div class="stat-row"><span>Satiation:</span><span class="stat-val" style="color:#fbbf24;"><span id="satiation">10</span> / 10</span></div>
-        <div class="stat-row"><span>Attack Power:</span><span class="stat-val" style="color:#dc2626;"><span id="atk">7</span></span></div>
+        <div class="stat-row"><span>Strength:</span><span class="stat-val" style="color:#dc2626;"><span id="str">7</span></span></div>
+        <div class="stat-row"><span>Wisdom:</span><span class="stat-val" style="color:#a78bfa;"><span id="wis">5</span></span></div>
+        <div class="stat-row"><span>Infamy:</span><span class="stat-val"><span id="xp">0</span></span></div>
       </div>
-      <div class="settings-section-title" style="margin-top: 12px; margin-bottom: 4px;">Inventory</div>
       <div id="inv"></div>
       <div class="action-bar" style="margin-top: 8px;">
-        <button class="action-btn" id="btn-strike" data-spell="steel strike">
-          <span style="color:#cbd5e1; font-weight:bold;">Steel Strike</span>
+        <button class="action-btn" id="btn-strike" data-spell="weapon strike">
+          <span style="color:#cbd5e1; font-weight:bold;">Weapon Strike</span>
           <span class="cost">1 AP</span>
           <span class="hotkey">[1]</span>
         </button>
@@ -502,12 +530,16 @@
           <span class="cost">2 AP</span>
           <span class="hotkey">[4]</span>
         </button>
+        <button class="action-btn" id="btn-swing" data-spell="melee swing">
+          <span style="color:#fb923c; font-weight:bold;">Melee Swing</span>
+          <span class="cost">1 AP</span>
+          <span class="hotkey">[5]</span>
+        </button>
       </div>
     </div>
 
     <div id="chronicle-ui" class="panel">
-      <div class="settings-section-title" style="margin-bottom: 4px;">Chronicle</div>
-      <div id="log" style="margin-bottom: 8px;"></div>
+      <div id="log"></div>
       <button class="action-btn" id="btn-explore-area" style="margin-top: 4px;">
         <span>Explore Area</span>
         <span class="hotkey">[E]</span>
@@ -516,6 +548,7 @@
         <span>Advance Darkness & Horrors</span>
         <span class="hotkey">[Space]</span>
       </button>
+      <div id="panel-resize-handle"></div>
     </div>
   </div>
 
@@ -2244,7 +2277,7 @@ const hero = createBlackKnight();
 
 const state = { 
   q: 0, r: 0, hp: 100, maxHp: 100, armor: 0, satiation: 10, maxSatiation: 10, 
-  shillings: 0, atk: 7, xp: 0, level: 1, army: 0, rations: 8, ap: 4, maxAp: 4, 
+  shillings: 0, str: 7, wis: 5, xp: 0, level: 1, army: 0, rations: 8, ap: 4, maxAp: 4, 
   inventory: [], turn: 1,
   spells: { "Blood Burst Scroll": 0, "Flesh Mend Scroll": 0, "Reaping Bolt Scroll": 0 }
 };
@@ -2253,7 +2286,7 @@ const logBox = document.getElementById("log");
 function log(msg) { logBox.innerHTML = `<div class="log-entry">${msg}</div>` + logBox.innerHTML; }
 
 const elArmor = document.getElementById("armor"), elSatiation = document.getElementById("satiation");
-const elXp = document.getElementById("xp"), elAp = document.getElementById("ap"), elMap = document.getElementById("map"), elHp = document.getElementById("hp"), elMhp = document.getElementById("mhp"), elAtk = document.getElementById("atk"), elInv = document.getElementById("inv");
+const elXp = document.getElementById("xp"), elAp = document.getElementById("ap"), elMap = document.getElementById("map"), elHp = document.getElementById("hp"), elMhp = document.getElementById("mhp"), elStr = document.getElementById("str"), elWis = document.getElementById("wis"), elInv = document.getElementById("inv");
 
 function updateUI(){
   elXp.textContent = state.xp;
@@ -2261,7 +2294,8 @@ function updateUI(){
   elHp.textContent = Math.max(0, state.hp); elMhp.textContent = state.maxHp;
   elArmor.textContent = state.armor;
   elSatiation.textContent = state.satiation;
-  elAtk.textContent = state.atk;
+  elStr.textContent = state.str;
+  elWis.textContent = state.wis;
   elInv.innerHTML = '';
 
   const displayItems = [];
@@ -2304,7 +2338,8 @@ function updateUI(){
   if (rLvl > 0) rBtn.querySelector("span").textContent = `Reaping Bolt (Lvl ${rLvl})`;
 
   document.querySelectorAll(".action-btn").forEach(btn => btn.classList.remove("active"));
-  if (spell === "steel strike") document.getElementById("btn-strike").classList.add("active");
+  if (spell === "weapon strike") document.getElementById("btn-strike").classList.add("active");
+  if (spell === "melee swing") document.getElementById("btn-swing").classList.add("active");
   if (spell === "blood burst") document.getElementById("btn-blood").classList.add("active");
   if (spell === "flesh mend") document.getElementById("btn-mend").classList.add("active");
   if (spell === "reaping bolt") document.getElementById("btn-reap").classList.add("active");
@@ -2359,7 +2394,7 @@ function spawnFleshMendFx(worldPos) {
 function gainScars(x){
   state.xp += x;
   if(state.xp >= state.level * 30){
-    state.level++; state.maxHp += 8; state.hp = state.maxHp; state.atk += 3; state.army += 1;
+    state.level++; state.maxHp += 8; state.hp = state.maxHp; state.str += 2; state.wis += 2; state.army += 1;
     log(`<span style="color:#f87171;">Infamy Grows: Your power increases and Action Points are replenished.</span>`);
     state.ap = state.maxAp; SoundSystem.playLevelUp();
   }
@@ -2389,7 +2424,7 @@ function tryLoot(chance) {
   updateUI();
 }
 
-const SPELL_RANGE = { "steel strike": 1, "blood burst": 2, "reaping bolt": 3 };
+const SPELL_RANGE = { "weapon strike": 1, "melee swing": 1, "blood burst": 2, "reaping bolt": 3 };
 
 function onEnemySlain(enemy, isMelee) {
   enemy.mesh.visible = false;
@@ -2481,7 +2516,7 @@ function castFleshMend() {
   if (processingTurn) return;
   if (state.ap < 2) { log("Not enough AP! Flesh Mend requires <span class='highlight'>2 AP</span>."); SoundSystem.playBuzzer(); return; }
   const lvl = state.spells["Flesh Mend Scroll"] || 1;
-  const heal = 12 * lvl;
+  const heal = (8 + state.wis * 2) * lvl;
   state.ap -= 2; state.hp = Math.min(state.maxHp, state.hp + heal); 
   log(`<span style='color:#34d399;'>Holy incantations (Lvl ${lvl}) mend wounds (+${heal} Health).</span>`); 
   spawnFleshMendFx(hero.position); createDamagePopup(`+${heal}`, hero.position, "#34d399");
@@ -2492,9 +2527,14 @@ async function processTurnAdvance() {
   if (state.hp <= 0 || processingTurn) return;
   processingTurn = true;
 
+  const prevDay = Math.floor((state.turn - 1) / 2) + 1;
   state.turn++;
   state.ap = state.maxAp;
-  log(`<b style="color:#fff; font-size:13px; margin-top:8px; display:block;">Turn ${state.turn}</b>`);
+  const newDay = Math.floor((state.turn - 1) / 2) + 1;
+  if (newDay !== prevDay) {
+    log(`<div style='color:#fca5a5; font-size:11px; margin-top:8px; font-family:var(--font-serif); letter-spacing:1px;'><b>Day ${newDay} begins.</b></div>`);
+  }
+  log(`<b style="color:#fff; font-size:11px; margin-top:8px; display:block;">Turn ${state.turn}</b>`);
   log("<div style='color:#fb923c; margin-top:6px;'>[ Horrors re-orient themselves ]</div>");
 
   state.satiation--;
@@ -2766,7 +2806,7 @@ function selectSpell(spellName) {
 
   const spellMap = { "blood burst": "Blood Burst Scroll", "flesh mend": "Flesh Mend Scroll", "reaping bolt": "Reaping Bolt Scroll" };
   
-  if (spellName !== "steel strike" && state.spells[spellMap[spellName]] <= 0) {
+  if (spellName !== "weapon strike" && spellName !== "melee swing" && state.spells[spellMap[spellName]] <= 0) {
     return;
   }
 
@@ -2787,22 +2827,49 @@ window.addEventListener("keydown", e => {
   if (!gameStarted) return;
   if(e.code === "Space") e.preventDefault();
   if(state.hp <= 0) return;
-  if(e.key === "1") selectSpell("steel strike");
+  if(e.key === "1") selectSpell("weapon strike");
   if(e.key === "2") selectSpell("blood burst");
   if(e.key === "3") selectSpell("flesh mend");
   if(e.key === "4") selectSpell("reaping bolt");
+  if(e.key === "5") selectSpell("melee swing");
   if(e.key === "e" || e.key === "E") { sessionStorage.setItem('app_nav','1'); window.location.href = "openworld.html"; }
   if(e.code === "Space") processTurnAdvance();
 });
 
-document.getElementById("btn-strike").addEventListener("click", () => selectSpell("steel strike"));
+document.getElementById("btn-strike").addEventListener("click", () => selectSpell("weapon strike"));
 document.getElementById("btn-blood").addEventListener("click", () => selectSpell("blood burst"));
 document.getElementById("btn-mend").addEventListener("click", () => selectSpell("flesh mend"));
 document.getElementById("btn-reap").addEventListener("click", () => selectSpell("reaping bolt"));
+document.getElementById("btn-swing").addEventListener("click", () => selectSpell("melee swing"));
 document.getElementById("btn-explore-area").addEventListener("click", () => {
   sessionStorage.setItem('app_nav','1'); window.location.href = "openworld.html";
 });
 document.getElementById("btn-end-turn").addEventListener("click", () => { if (state.hp > 0) processTurnAdvance(); });
+
+const panelHandle = document.getElementById("panel-resize-handle");
+const chroniclePanel = document.getElementById("chronicle-ui");
+let isResizing = false;
+panelHandle.addEventListener("mousedown", e => {
+  isResizing = true;
+  chroniclePanel.style.flex = "none";
+  const startY = e.clientY;
+  const startH = chroniclePanel.offsetHeight;
+  function onMove(ev) {
+    if (!isResizing) return;
+    const newH = Math.max(140, startH + (ev.clientY - startY));
+    chroniclePanel.style.height = newH + "px";
+  }
+  function onUp() {
+    isResizing = false;
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+  }
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+  e.preventDefault();
+});
+
+
 
 document.getElementById("chapter-select").addEventListener("change", (e) => {
   const chapter = e.target.value;
@@ -2876,27 +2943,32 @@ window.addEventListener("pointerdown", e => {
     state.ap -= cost; triggerCameraShake(0.35);
     if(spell === "blood burst") spawnBloodBurstFx(hit.point);
     if(spell === "reaping bolt") spawnReapingBoltFx(hero.position, hit.point);
-    if(spell === "steel strike") SoundSystem.playSlash();
+    if(spell === "weapon strike" || spell === "melee swing") SoundSystem.playSlash();
 
     enemies.forEach(enemy => {
       if(enemy.hp > 0 && HexUtils.dist(q, r, enemy.q, enemy.r) <= (spell === "blood burst" ? 1 : 0)){
         const spellMap = { "blood burst": "Blood Burst Scroll", "reaping bolt": "Reaping Bolt Scroll" };
         const lvl = state.spells[spellMap[spell]] || 1;
-        let baseDmg = (spell === "blood burst") ? 15 : (spell === "reaping bolt" ? 22 : state.atk + Math.floor(state.army/4));
+        let baseDmg;
+        if (spell === "blood burst") baseDmg = 12 + state.wis * 2;
+        else if (spell === "reaping bolt") baseDmg = 20 + state.wis * 2;
+        else if (spell === "melee swing") baseDmg = state.str * 2 + Math.floor(state.army / 4);
+        else baseDmg = state.str + Math.floor(state.army / 4);
         
-        let dmg = (spell === "steel strike") ? baseDmg : baseDmg * lvl;
+        let dmg = (spell === "weapon strike" || spell === "melee swing") ? baseDmg : baseDmg * lvl;
 
         enemy.hp -= dmg;
         log(`${spell} (Lvl ${lvl}) impacts ${enemy.type} for ${dmg} damage.`);
-        createDamagePopup(`-${dmg}`, enemy.mesh.position, spell === "blood burst" ? "#f87171" : (spell === "steel strike" ? "#fb923c" : "#c084fc"));
+        const popColor = spell === "blood burst" ? "#f87171" : (spell === "weapon strike" ? "#fb923c" : (spell === "melee swing" ? "#f97316" : "#c084fc"));
+        createDamagePopup(`-${dmg}`, enemy.mesh.position, popColor);
         SoundSystem.playDamage();
-        if(enemy.hp <= 0) onEnemySlain(enemy, spell === "steel strike");
+        if(enemy.hp <= 0) onEnemySlain(enemy, spell === "weapon strike" || spell === "melee swing");
       }
     });
 
     if (spell === "blood burst") {
       const lvl = state.spells["Blood Burst Scroll"] || 1;
-      const dmg = 15 * lvl;
+      const dmg = (12 + state.wis * 2) * lvl;
       prisons.forEach(prison => {
         if (prison.hp > 0 && HexUtils.dist(q, r, prison.q, prison.r) <= 1) {
           prison.hp -= dmg;
@@ -2932,7 +3004,7 @@ window.addEventListener("pointerdown", e => {
   if(enemyOnHex) {
     if(dist > 1) { log("Target anomaly is out of blade reach."); return; }
     if(state.ap < 1) { log("Not enough AP!"); SoundSystem.playBuzzer(); return; }
-    state.ap -= 1; const damage = state.atk + Math.floor(state.army/4); enemyOnHex.hp -= damage;
+    state.ap -= 1; const damage = state.str + Math.floor(state.army/4); enemyOnHex.hp -= damage;
     log(`Greatsword slashes ${enemyOnHex.type} for <span style="color:#fb923c;">${damage} damage</span>!`);
     triggerCameraShake(0.25); createDamagePopup(`-${damage}`, enemyOnHex.mesh.position, "#fb923c");
     SoundSystem.playSlash();
@@ -2945,7 +3017,7 @@ window.addEventListener("pointerdown", e => {
   if(churchOnHex) {
     if(dist > 1) { log("The Church is beyond your reach."); return; }
     if(state.ap < 1) { log("Not enough AP!"); SoundSystem.playBuzzer(); return; }
-    state.ap -= 1; const damage = state.atk + Math.floor(state.army/4); churchOnHex.hp -= damage;
+    state.ap -= 1; const damage = state.str + Math.floor(state.army/4); churchOnHex.hp -= damage;
     log(`You strike the Church for <span style="color:#fb923c;">${damage} damage</span>!`);
     triggerCameraShake(0.2); createDamagePopup(`-${damage}`, churchOnHex.mesh.position, "#ffffff");
     SoundSystem.playSlash();
@@ -2971,7 +3043,7 @@ window.addEventListener("pointerdown", e => {
   if(prisonOnHex) {
     if(dist > 1) { log("The prison cart is beyond your reach."); return; }
     if(state.ap < 1) { log("Not enough AP!"); SoundSystem.playBuzzer(); return; }
-    state.ap -= 1; const damage = state.atk + Math.floor(state.army/4); prisonOnHex.hp -= damage;
+    state.ap -= 1; const damage = state.str + Math.floor(state.army/4); prisonOnHex.hp -= damage;
     log(`You strike the prison cart for <span style="color:#fb923c;">${damage} damage</span>!`);
     triggerCameraShake(0.2); createDamagePopup(`-${damage}`, prisonOnHex.mesh.position, "#ffffff");
     SoundSystem.playSlash();
@@ -3077,7 +3149,7 @@ document.getElementById("start-game-btn").addEventListener("click", () => {
   if (SoundSystem.ctx) SoundSystem.ctx.resume();
   gameStarted = true;
   generateWorld(1); updateUI();
-  log("<b style='color:#fff; font-size:13px;'>Turn 1</b>");
+  log("<b style='color:#fff; font-size:11px;'>Turn 1</b>");
   log("You arrive in Forest Haven.");
 });
 
@@ -3114,7 +3186,7 @@ function applyDynamicColors(key) {
   else if (key === "uiBg") { document.documentElement.style.setProperty('--color-bg', hex); scene.background.copy(threeColor); }
   else if (key === "uiAccent") { 
     document.documentElement.style.setProperty('--color-accent', hex);
-    document.querySelectorAll('.panel').forEach(p => p.style.borderLeftColor = hex);
+
   }
 }
 
