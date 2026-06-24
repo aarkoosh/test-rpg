@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Wizards</title>
+<title></title>
+<script>if(sessionStorage.getItem('app_nav')!=='1'){window.location.replace('index.html');}else{sessionStorage.removeItem('app_nav');}</script>
 <link href="https://fonts.googleapis.com/css2?family=Metamorphous&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -28,40 +29,6 @@
   #loading-screen.hidden {
     opacity: 0;
     pointer-events: none; /* Allow clicks through once hidden */
-  }
-
-  #loading-screen h1 {
-    font-family: 'Metamorphous', cursive;
-    font-size: 5em; /* Large font size */
-    color: white; /* Light color for visibility on black background */
-    text-align: center;
-    margin-bottom: 30px;
-    /* Blue and white glow effect */
-    text-shadow:
-      0 0 10px #00f, /* Blue glow */
-      0 0 20px #00f,
-      0 0 30px #00f,
-      0 0 40px #fff, /* White glow */
-      0 0 50px #fff;
-  }
-
-  #begin-adventure-button {
-    padding: 15px 30px;
-    font-size: 1.5em;
-    font-family: 'Metamorphous', cursive;
-    background-color: #4CAF50; /* Green background */
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5); /* Green glow for button */
-    transition: background-color 0.3s ease, box-shadow 0.3s ease;
-    display: none; /* Hidden initially */
-  }
-
-  #begin-adventure-button:hover {
-    background-color: #45a049;
-    box-shadow: 0 0 15px rgba(0, 255, 0, 0.8);
   }
 
   #loading-indicator {
@@ -155,9 +122,7 @@
 </head>
 <body>
 <div id="loading-screen">
-  <h1>Wizards</h1>
   <div id="loading-indicator"></div>
-  <button id="begin-adventure-button">Begin Adventure</button>
 </div>
 <div id="spell-bar">
   <div id="spell-1" class="spell-icon active">1</div>
@@ -1776,10 +1741,9 @@ window.addEventListener('resize',()=>{
 // Get loading screen elements
 const loadingScreen = document.getElementById('loading-screen');
 const loadingIndicator = document.getElementById('loading-indicator');
-const beginButton = document.getElementById('begin-adventure-button');
 
 // Initial camera setup for currentCameraPos and currentLookAt
-// This prevents a camera jump when animate() first runs after the button click.
+// This prevents a camera jump when animate() first runs.
 const initialCamOffset = new THREE.Vector3(Math.sin(camYaw)*Math.cos(camPitch)*camDist, Math.sin(camPitch)*camDist, Math.cos(camYaw)*Math.cos(camPitch)*camDist);
 let initialDesiredCamPos = playerPos.clone().add(initialCamOffset);
 const initialLookAtPos = new THREE.Vector3(playerPos.x, playerPos.y + 1.2, playerPos.z);
@@ -1790,20 +1754,16 @@ currentLookAt.copy(initialLookAtPos);
 camera.position.copy(currentCameraPos);
 camera.lookAt(currentLookAt);
 
-// Show the button once the initial scene setup is complete
 loadingIndicator.style.display = 'none';
-beginButton.style.display = 'block';
 
-updateChunks(); // Initial load performed after button is ready to prevent black screen hang
+updateChunks(); // Initial load
 
-beginButton.addEventListener('click', () => {
-  loadingScreen.classList.add('hidden'); // Start fade out
-  loadingScreen.addEventListener('transitionend', () => { loadingScreen.style.display = 'none'; }, { once: true });
-  animate(); // Start the game loop
-});
+loadingScreen.classList.add('hidden'); // Start fade out
+loadingScreen.addEventListener('transitionend', () => { loadingScreen.style.display = 'none'; }, { once: true });
+animate(); // Start the game loop
 
 document.getElementById("return-overworld-btn").addEventListener("click", () => {
-  window.location.href = "overworld.html";
+  sessionStorage.setItem('app_nav','1'); window.location.href = "overworld.html";
 });
 </script>
 </body>

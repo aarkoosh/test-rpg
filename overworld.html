@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Chronicles of Ash</title>
+  <title></title>
+  <script>if(sessionStorage.getItem('app_nav')!=='1'){window.location.replace('index.html');}else{sessionStorage.removeItem('app_nav');}</script>
   <link href="https://fonts.googleapis.com/css2?family=Metal+Mania&display=swap" rel="stylesheet">
   <link rel="modulepreload" crossorigin="anonymous" integrity="sha384-AGb1dmc6iKzaUdiKzoPrjurf+KS2wBFi+pjOpaJcgaw+7KKLb6xukClmpc64hKhg" href="https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js">
   <style>
@@ -439,7 +440,7 @@
 </head>
 <body>
   <div id="start-screen">
-    <h1 class="start-title">Chronicles of Ash</h1>
+    <div style="height: 40px;"></div>
     <div style="margin-bottom: 30px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
       <label for="seed-input" style="font-size: 12px; color: #94a3b8; letter-spacing: 1.5px; text-transform: uppercase;">World Seed (optional — blank = new layout each time)</label>
       <input id="seed-input" type="text" placeholder="Enter seed..." style="background: rgba(15, 23, 42, 0.8); border: 1px solid #334155; color: #f8fafc; padding: 8px 16px; font-family: monospace; font-size: 14px; border-radius: 4px; text-align: center; width: 240px; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#334155'">
@@ -453,7 +454,7 @@
   <div id="ui-stack">
     <div id="header-ui" class="panel">
       <header>
-        <h3 style="line-height: 1.2;">Chronicles of Ash</h3>
+        <div style="height: 20px;"></div>
       </header>
       <div class="subtitle-container" style="margin-top: 8px;">
         <select id="chapter-select" class="settings-select" style="width: 100%; border-color: rgba(220, 38, 38, 0.6); background: #0f172a; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: #f8fafc;">
@@ -2790,7 +2791,7 @@ window.addEventListener("keydown", e => {
   if(e.key === "2") selectSpell("blood burst");
   if(e.key === "3") selectSpell("flesh mend");
   if(e.key === "4") selectSpell("reaping bolt");
-  if(e.key === "e" || e.key === "E") window.location.href = "openworld.html";
+  if(e.key === "e" || e.key === "E") { sessionStorage.setItem('app_nav','1'); window.location.href = "openworld.html"; }
   if(e.code === "Space") processTurnAdvance();
 });
 
@@ -2799,7 +2800,7 @@ document.getElementById("btn-blood").addEventListener("click", () => selectSpell
 document.getElementById("btn-mend").addEventListener("click", () => selectSpell("flesh mend"));
 document.getElementById("btn-reap").addEventListener("click", () => selectSpell("reaping bolt"));
 document.getElementById("btn-explore-area").addEventListener("click", () => {
-  window.location.href = "openworld.html";
+  sessionStorage.setItem('app_nav','1'); window.location.href = "openworld.html";
 });
 document.getElementById("btn-end-turn").addEventListener("click", () => { if (state.hp > 0) processTurnAdvance(); });
 

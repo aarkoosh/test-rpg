@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Chronicles of Ash</title>
+  <title></title>
   <link href="https://fonts.googleapis.com/css2?family=Metal+Mania&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -147,12 +147,11 @@
   
   <div id="ui-container">
     <div class="title-group">
-      <h1 class="start-title">Chronicles of Ash</h1>
-      <div class="start-subtitle">A Dark Fantasy Adventure</div>
+      <div style="height: 100px;"></div>
     </div>
     
     <div class="button-group">
-      <button id="begin-adventure-button">Begin Adventure</button>
+      <button id="begin-adventure-button">Begin</button>
     </div>
     
     <div id="loading-text">Loading 3D Engine...</div>
@@ -213,51 +212,71 @@
     const textureLoader = new THREE.TextureLoader();
     textureLoader.setCrossOrigin('anonymous');
     const coverMaterial = new THREE.MeshStandardMaterial({
-      roughness: 0.2,
-      metalness: 0.1,
-      color: 0xffffff
+      roughness: 0.15,
+      metalness: 0.05,
+      color: 0xffffff,
+      emissive: 0x222222,
+      emissiveIntensity: 0.3
     });
     
-    // Fallback if texture fails to load
-    coverMaterial.color.setHex(0x1a2233);
-    
+    // Back cover material
+    const backCoverMaterial = new THREE.MeshStandardMaterial({
+      roughness: 0.15,
+      metalness: 0.05,
+      color: 0xffffff,
+      emissive: 0x222222,
+      emissiveIntensity: 0.3
+    });
+
+    backCoverMaterial.color.setHex(0x1a2233);
+
     // Try both path casings for cross-platform compatibility
-    const texturePaths = [
+    const frontTexturePaths = [
       'Assets/14796d0c-e01c-4da3-916a-7b75ab0b0953.png',
       'assets/14796d0c-e01c-4da3-916a-7b75ab0b0953.png'
     ];
-    
-    function loadTexture(pathIndex) {
-      if (pathIndex >= texturePaths.length) {
-        console.error('All texture paths failed');
-        document.getElementById('loading-text').style.display = 'none';
-        return;
-      }
-      
-      textureLoader.load(
-        texturePaths[pathIndex],
-        function(texture) {
-          console.log('Texture loaded successfully from', texturePaths[pathIndex], ':', texture.image.width, 'x', texture.image.height);
-          texture.minFilter = THREE.LinearFilter;
-          texture.magFilter = THREE.LinearFilter;
-          texture.wrapS = THREE.ClampToEdgeWrapping;
-          texture.wrapT = THREE.ClampToEdgeWrapping;
-          texture.colorSpace = THREE.SRGBColorSpace;
-          coverMaterial.map = texture;
-          coverMaterial.needsUpdate = true;
+
+    const backTexturePaths = [
+      'Assets/34831e6a-7a46-4ce3-ad1d-c14b09a02060.png',
+      'assets/34831e6a-7a46-4ce3-ad1d-c14b09a02060.png'
+    ];
+
+    function loadTexture(paths, material, label) {
+      let pathIndex = 0;
+      function tryNext() {
+        if (pathIndex >= paths.length) {
+          console.error('All ' + label + ' texture paths failed');
           document.getElementById('loading-text').style.display = 'none';
-        },
-        function(xhr) {
-          console.log('Texture loading progress from', texturePaths[pathIndex], ':', (xhr.loaded / xhr.total * 100) + '%');
-        },
-        function(err) {
-          console.error('Error loading texture from', texturePaths[pathIndex], ':', err);
-          loadTexture(pathIndex + 1);
+          return;
         }
-      );
+        textureLoader.load(
+          paths[pathIndex],
+          function(texture) {
+            console.log(label + ' texture loaded from', paths[pathIndex], ':', texture.image.width, 'x', texture.image.height);
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            texture.wrapS = THREE.ClampToEdgeWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
+            texture.colorSpace = THREE.SRGBColorSpace;
+            material.map = texture;
+            material.needsUpdate = true;
+            document.getElementById('loading-text').style.display = 'none';
+          },
+          function(xhr) {
+            console.log(label + ' texture progress from', paths[pathIndex], ':', (xhr.loaded / xhr.total * 100) + '%');
+          },
+          function(err) {
+            console.error('Error loading ' + label + ' texture from', paths[pathIndex], ':', err);
+            pathIndex++;
+            tryNext();
+          }
+        );
+      }
+      tryNext();
     }
-    
-    loadTexture(0);
+
+    loadTexture(frontTexturePaths, coverMaterial, 'Front');
+    loadTexture(backTexturePaths, backCoverMaterial, 'Back');
     
     // Other materials for the case
     const plasticMaterial = new THREE.MeshStandardMaterial({
@@ -286,7 +305,7 @@
       plasticMaterial,     // Top
       plasticMaterial,     // Bottom
       coverMaterial,       // Front (cover)
-      plasticMaterial      // Back
+      backCoverMaterial    // Back
     ];
     
     const geometry = new THREE.BoxGeometry(width, height, depth);
@@ -338,15 +357,72 @@
     const particles = new THREE.Points(particleGeometry, particleMaterial);
     scene.add(particles);
     
-    // Animation variables
-    let mouseX = 0;
-    let mouseY = 0;
-    let targetX = 0;
-    let targetY = 0;
+    // Interaction variables
+    let isDragging = false;
+    let previousMouseX = 0;
+    let previousMouseY = 0;
+    let targetRotationX = 0;
+    let targetRotationY = 0;
+    let currentRotationX = 0;
+    let currentRotationY = 0;
+    let velocityX = 0;
+    let velocityY = 0;
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let isHovering = false;
+    
+    // Cursor styles
+    const canvas = renderer.domElement;
+    canvas.style.cursor = 'default';
+    
+    // Raycasting for hover detection
+    function checkHover(event) {
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObject(dvdCase, true);
+      
+      isHovering = intersects.length > 0;
+      canvas.style.cursor = isHovering ? (isDragging ? 'grabbing' : 'grab') : 'default';
+    }
     
     window.addEventListener('mousemove', (event) => {
-      mouseX = (event.clientX - window.innerWidth / 2) / (window.innerWidth / 2);
-      mouseY = (event.clientY - window.innerHeight / 2) / (window.innerHeight / 2);
+      checkHover(event);
+      
+      if (isDragging) {
+        const deltaX = event.clientX - previousMouseX;
+        const deltaY = event.clientY - previousMouseY;
+        
+        velocityX = deltaX * 0.005;
+        velocityY = deltaY * 0.005;
+        
+        targetRotationY += velocityX;
+        targetRotationX += velocityY;
+        
+        previousMouseX = event.clientX;
+        previousMouseY = event.clientY;
+      }
+    });
+    
+    window.addEventListener('mousedown', (event) => {
+      if (isHovering) {
+        isDragging = true;
+        previousMouseX = event.clientX;
+        previousMouseY = event.clientY;
+        canvas.style.cursor = 'grabbing';
+      }
+    });
+    
+    window.addEventListener('mouseup', () => {
+      isDragging = false;
+      canvas.style.cursor = isHovering ? 'grab' : 'default';
+    });
+    
+    window.addEventListener('mouseleave', () => {
+      isDragging = false;
+      canvas.style.cursor = 'default';
     });
     
     // Handle Window Resize
@@ -395,7 +471,7 @@
           requestAnimationFrame(animateTransition);
         } else {
           // Redirect to overworld
-          window.location.href = 'overworld.html';
+          sessionStorage.setItem('app_nav','1');window.location.href = 'overworld.html';
         }
       }
       animateTransition();
@@ -411,18 +487,21 @@
       const time = clock.getElapsedTime();
       
       if (!isTransitioning) {
-        // Continuous elegant spinning
-        dvdGroup.rotation.y = time * 0.5;
-        
-        // Subtle bobbings
+        // Subtle bobbing only
         dvdGroup.position.y = Math.sin(time * 1.5) * 0.15;
         
-        // Mouse influence
-        targetX = mouseX * 0.3;
-        targetY = mouseY * 0.3;
+        // Apply rotation with inertia/damping
+        currentRotationX += (targetRotationX - currentRotationX) * 0.1;
+        currentRotationY += (targetRotationY - currentRotationY) * 0.1;
         
-        dvdGroup.rotation.x = THREE.MathUtils.lerp(dvdGroup.rotation.x, targetY, 0.05);
-        dvdGroup.rotation.z = THREE.MathUtils.lerp(dvdGroup.rotation.z, -targetX * 0.5, 0.05);
+        // Apply velocity for inertia when dragging stops
+        targetRotationX += velocityY;
+        targetRotationY += velocityX;
+        velocityX *= 0.95;
+        velocityY *= 0.95;
+        
+        dvdGroup.rotation.x = currentRotationX;
+        dvdGroup.rotation.y = currentRotationY;
       }
       
       // Animate particles
