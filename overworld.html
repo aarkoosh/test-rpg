@@ -1,0 +1,3269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Chronicles of Ash</title>
+  <link href="https://fonts.googleapis.com/css2?family=Metal+Mania&display=swap" rel="stylesheet">
+  <link rel="modulepreload" crossorigin="anonymous" integrity="sha384-AGb1dmc6iKzaUdiKzoPrjurf+KS2wBFi+pjOpaJcgaw+7KKLb6xukClmpc64hKhg" href="https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js">
+  <style>
+    :root {
+      --color-bg: #090d16;
+      --color-panel: rgba(19, 25, 36, 0.9);
+      --color-border: #2e3e59;
+      --color-accent: #dc2626;
+      --color-gold: #fbbf24;
+      --color-green: #10b981;
+      --color-purple: #a855f7;
+      --color-ap: #3b82f6;
+      --font-serif: "Georgia", serif;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: var(--color-bg);
+      font-family: var(--font-serif);
+      letter-spacing: 0.5px;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #ui-stack {
+      position: absolute;
+      left: 16px;
+      top: 16px;
+      width: 360px;
+      max-width: calc(100vw - 32px);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .panel {
+      background: linear-gradient(135deg, #131924 0%, #1a2233 100%);
+      color: #e2e8f0;
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.65), inset 0 0 15px rgba(255,255,255,0.03);
+      border: 1px solid var(--color-border);
+      border-left: 5px solid var(--color-accent);
+      pointer-events: auto;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2px;
+    }
+
+    h3 { 
+      margin: 0;
+      color: #f87171;
+      font-size: 22px;
+      letter-spacing: 2px; 
+      font-weight: normal;
+      font-family: 'Metal Mania', system-ui;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    .audio-btn {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--color-border);
+      color: #94a3b8;
+      border-radius: 4px;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    .audio-btn:hover {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+    }
+
+    .subtitle { 
+      font-size: 9px;
+      color: #94a3b8;
+      margin-bottom: 12px;
+      border-bottom: 1px solid rgba(220, 38, 38, 0.4); 
+      padding-bottom: 4px;
+      letter-spacing: 1.5px;
+    }
+
+    .stats-container {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-row { 
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      border-bottom: 1px dashed rgba(255,255,255,0.05); 
+      padding-bottom: 3px;
+    }
+
+    .stat-val {
+      font-weight: bold;
+      color: #ffffff;
+      font-family: monospace;
+      font-size: 13px;
+    }
+
+    .action-bar {
+      margin-top: 4px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+    }
+
+    .action-btn {
+      background: #1e293b;
+      border: 1px solid var(--color-border);
+      color: #cbd5e1;
+      font-family: var(--font-serif);
+      font-size: 10px;
+      padding: 8px 2px;
+      border-radius: 4px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .action-btn:hover {
+      background: #334155;
+      color: #fff;
+      border-color: #475569;
+    }
+
+    .action-btn:active {
+      transform: scale(0.97);
+    }
+
+    .action-btn.active {
+      border-color: var(--color-accent);
+      background: rgba(220, 38, 38, 0.15);
+      color: #fca5a5;
+    }
+
+    .action-btn .cost {
+      font-size: 9px;
+      font-weight: bold;
+      color: #93c5fd;
+    }
+
+    .action-btn .hotkey {
+      font-size: 8px;
+      color: #64748b;
+      font-family: monospace;
+    }
+
+    .action-btn-end {
+      background: #27272a;
+      border-color: #3f3f46;
+      color: #f4f4f5;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+    .action-btn-end:hover {
+      background: #dc2626;
+      border-color: #ef4444;
+    }
+
+    #btn-explore-area {
+      background: #1e293b;
+      border-color: var(--color-gold);
+      color: var(--color-gold);
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+    #btn-explore-area:hover {
+      background: var(--color-gold);
+      border-color: #fef08a;
+      color: #0f172a;
+      box-shadow: 0 0 15px rgba(251, 191, 36, 0.4);
+    }
+
+    #log {
+      height: 120px;
+      overflow-y: auto;
+      font-size: 11px;
+      display: flex;
+      flex-direction: column-reverse;
+      line-height: 1.5;
+      color: #94a3b8;
+    }
+    #log::-webkit-scrollbar { width: 4px; }
+    #log::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
+
+    .log-entry {
+      margin-bottom: 4px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+      padding-bottom: 2px;
+    }
+
+    #inv {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+      min-height: 160px;
+      max-height: 172px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    #inv::-webkit-scrollbar { width: 4px; }
+    #inv::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
+
+    .inv-slot {
+      aspect-ratio: 1;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      padding: 4px;
+      font-size: 8.5px;
+      padding: 3px;
+      text-align: center;
+      line-height: 1.1;
+      color: #c084fc;
+      box-sizing: border-box;
+      word-break: break-word;
+      overflow: hidden;
+    }
+
+    
+    #start-screen {
+      position: absolute;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: radial-gradient(circle at center, #050a15 0%, #010204 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      color: #e2e8f0;
+      text-align: center;
+      transition: opacity 0.6s ease;
+    }
+    #start-screen * {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #start-screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .start-title {
+      font-family: 'Metal Mania', system-ui;
+      font-size: 120px;
+      color: #000;
+      letter-spacing: 4px;
+      margin: 0 0 80px 0;
+      text-shadow: 0 0 15px rgba(59, 130, 246, 0.8), 0 0 30px rgba(37, 99, 235, 0.4);
+      animation: titleBob 4s ease-in-out infinite;
+    }
+    @keyframes titleBob {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-20px); }
+    }
+    .start-subtitle {
+      font-size: 14px;
+      color: #94a3b8;
+      letter-spacing: 3px;
+      margin-bottom: 50px;
+    }
+    #start-game-btn {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid #334155;
+      color: #64748b;
+      padding: 10px 30px;
+      font-family: var(--font-serif);
+      font-size: 14px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.3s ease;
+    }
+    #start-game-btn:hover {
+      background: #1e293b;
+      border-color: #3b82f6;
+      color: #fff;
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+    }
+
+    #death-screen {
+      position: absolute;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(10, 0, 0, 0.95);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+      color: #ef4444;
+      text-align: center;
+    }
+    .death-title {
+      font-size: 64px;
+      color: #ef4444;
+      letter-spacing: 12px;
+      margin: 0;
+      text-shadow: 0 0 30px rgba(239, 68, 68, 0.6);
+      margin-bottom: 40px;
+    }
+    #return-menu-btn {
+      background: #1e293b;
+      border: 1px solid #ef4444;
+      color: #fca5a5;
+      padding: 14px 40px;
+      font-family: var(--font-serif);
+      font-size: 18px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.3s ease;
+    }
+    #return-menu-btn:hover {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    .highlight { color: #f87171; font-weight: normal; font-style: normal;}
+
+    .dmg-popup {
+      position: absolute;
+      font-family: monospace;
+      font-weight: bold;
+      font-size: 26px;
+      pointer-events: none;
+      text-shadow: 0 2px 8px #000, 0 0 12px rgba(255,255,255,0.3);
+      transform: translate(-50%, -50%);
+      transition: all 0.85s cubic-bezier(0.25, 1, 0.5, 1);
+      opacity: 1;
+      z-index: 100;
+    }
+
+    #targeting-indicator {
+      position: absolute;
+      top: 64px;
+      right: 24px;
+      background: rgba(0,0,0,0.85);
+      border: 1px solid var(--color-accent);
+      border-radius: 6px;
+      padding: 10px 16px;
+      color: #f87171;
+      font-family: var(--font-serif);
+      font-size: 13px;
+      letter-spacing: 1px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+      animation: pulse 1.5s infinite ease-in-out;
+      z-index: 5;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.8; }
+      50% { opacity: 1; transform: scale(1.02); }
+    }
+
+    .settings-section-title {
+      font-family: var(--font-serif);
+      font-size: 14px;
+      letter-spacing: 1.5px;
+      color: #fca5a5;
+      border-bottom: 1px dashed rgba(255,255,255,0.15);
+      padding-bottom: 4px;
+      margin-bottom: 10px;
+    }
+
+    .settings-select {
+      background: #0f172a;
+      border: 1px solid var(--color-border);
+      color: #f8fafc;
+      font-family: var(--font-serif);
+      padding: 4px 8px;
+      border-radius: 4px;
+      outline: none;
+      font-size: 11px;
+    }
+
+    .settings-select option {
+      background: #0f172a;
+      color: #f8fafc;
+    }
+
+    @media (max-width: 640px) {
+      #ui-stack {
+        left: 8px;
+        top: auto;
+        bottom: 8px;
+        width: calc(100vw - 16px);
+        max-height: 55vh;
+        gap: 2px;
+      }
+      .panel { padding: 12px; }
+      #targeting-indicator {
+        top: 12px;
+        right: 12px;
+        font-size: 11px;
+        padding: 6px 12px;
+      }
+      #log {
+        height: 70px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="start-screen">
+    <h1 class="start-title">Chronicles of Ash</h1>
+    <div style="margin-bottom: 30px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+      <label for="seed-input" style="font-size: 12px; color: #94a3b8; letter-spacing: 1.5px; text-transform: uppercase;">World Seed (optional — blank = new layout each time)</label>
+      <input id="seed-input" type="text" placeholder="Enter seed..." style="background: rgba(15, 23, 42, 0.8); border: 1px solid #334155; color: #f8fafc; padding: 8px 16px; font-family: monospace; font-size: 14px; border-radius: 4px; text-align: center; width: 240px; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#334155'">
+    </div>
+    <button id="start-game-btn">Begin Journey</button>
+  </div>
+  <div id="death-screen">
+    <h1 class="death-title">You Died</h1>
+    <button id="return-menu-btn">Return to Main Menu</button>
+  </div>
+  <div id="ui-stack">
+    <div id="header-ui" class="panel">
+      <header>
+        <h3 style="line-height: 1.2;">Chronicles of Ash</h3>
+      </header>
+      <div class="subtitle-container" style="margin-top: 8px;">
+        <select id="chapter-select" class="settings-select" style="width: 100%; border-color: rgba(220, 38, 38, 0.6); background: #0f172a; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: #f8fafc;">
+          <option value="1">I: Iron & Gloom</option>
+          <option value="2">II: Obsidian Tides</option>
+          <option value="3">III: The Gilded Blight</option>
+          <option value="4">IV: Echoes of Aether</option>
+          <option value="5">V: The Crimson Citadel</option>
+          <option value="6">VI: Final Ember</option>
+        </select>
+        <div id="seed-display" style="font-size: 9px; color: #64748b; margin-top: 6px; letter-spacing: 1px; font-family: monospace; text-align: center;">SEED: <span id="current-seed-val" style="color: #94a3b8;">-</span></div>
+      </div>
+    </div>
+
+    <div id="hero-ui" class="panel">
+      <div class="stats-container">
+        <div class="settings-section-title">Ash "The Black Knight"</div>
+        <div class="stat-row"><span>Infamy (Scars):</span><span class="stat-val"><span id="xp">0</span></span></div>
+        <div class="stat-row"><span>Action Points:</span><span class="stat-val" style="color:#60a5fa;"><span id="ap">4</span> / <span id="map">4</span></span></div>
+        <div class="stat-row"><span>Health:</span><span class="stat-val" style="color:#10b981;"><span id="hp">100</span> / <span id="mhp">100</span></span></div>
+        <div class="stat-row"><span>Armor:</span><span class="stat-val" style="color:#94a3b8;"><span id="armor">0</span></span></div>
+        <div class="stat-row"><span>Satiation:</span><span class="stat-val" style="color:#fbbf24;"><span id="satiation">10</span> / 10</span></div>
+        <div class="stat-row"><span>Attack Power:</span><span class="stat-val" style="color:#dc2626;"><span id="atk">7</span></span></div>
+      </div>
+      <div class="settings-section-title" style="margin-top: 12px; margin-bottom: 4px;">Inventory</div>
+      <div id="inv"></div>
+      <div class="action-bar" style="margin-top: 8px;">
+        <button class="action-btn" id="btn-strike" data-spell="steel strike">
+          <span style="color:#cbd5e1; font-weight:bold;">Steel Strike</span>
+          <span class="cost">1 AP</span>
+          <span class="hotkey">[1]</span>
+        </button>
+        <button class="action-btn" id="btn-blood" data-spell="blood burst" style="display: none;">
+          <span style="color:#f87171; font-weight:bold;">Blood Burst</span>
+          <span class="cost">1 AP</span>
+          <span class="hotkey">[2]</span>
+        </button>
+        <button class="action-btn" id="btn-mend" data-spell="flesh mend" style="display: none;">
+          <span style="color:#34d399; font-weight:bold;">Flesh Mend</span>
+          <span class="cost">2 AP</span>
+          <span class="hotkey">[3]</span>
+        </button>
+        <button class="action-btn" id="btn-reap" data-spell="reaping bolt" style="display: none;">
+          <span style="color:#c084fc; font-weight:bold;">Reaping Bolt</span>
+          <span class="cost">2 AP</span>
+          <span class="hotkey">[4]</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="chronicle-ui" class="panel">
+      <div class="settings-section-title" style="margin-bottom: 4px;">Chronicle</div>
+      <div id="log" style="margin-bottom: 8px;"></div>
+      <button class="action-btn" id="btn-explore-area" style="margin-top: 4px;">
+        <span>Explore Area</span>
+        <span class="hotkey">[E]</span>
+      </button>
+      <button class="action-btn action-btn-end" id="btn-end-turn" style="margin-top: 4px;">
+        <span>Advance Darkness & Horrors</span>
+        <span class="hotkey">[Space]</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="targeting-indicator">
+    <span style="width: 8px; height: 8px; background: #dc2626; border-radius: 50%; display: inline-block;"></span>
+    <span id="targeting-text">Targeting Mode</span>
+  </div>
+
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js";
+
+const SoundSystem = {
+  ctx: null, enabled: true, volume: 0.5, waveform: 'triangle', noiseBuffer: null,
+  init() { 
+    if (this.ctx) {
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      return;
+    }
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // Pre-generate noise buffer for performance
+    const bufferSize = this.ctx.sampleRate * 0.2;
+    this.noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = this.noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+  },
+  toggle(forceState = null) {
+    this.enabled = (forceState !== null) ? forceState : !this.enabled;
+    if (this.enabled && this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+  },
+  playSlash() {
+    if (!this.enabled) return;
+    this.init();
+    const now = this.ctx.currentTime;
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = this.noiseBuffer;
+    const noiseFilter = this.ctx.createBiquadFilter();
+    noiseFilter.type = 'highpass';
+    noiseFilter.frequency.setValueAtTime(1000, now);
+    noiseFilter.frequency.exponentialRampToValueAtTime(150, now + 0.15);
+    const gainNode = this.ctx.createGain();
+    gainNode.gain.setValueAtTime(0.3 * this.volume, now);
+    gainNode.gain.linearRampToValueAtTime(0.01, now + 0.15);
+    noise.connect(noiseFilter); noiseFilter.connect(gainNode); gainNode.connect(this.ctx.destination);
+    noise.start(now);
+  },
+  playSpellCast() {
+    if (!this.enabled) return;
+    this.init();
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const osc2 = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = this.waveform;
+    osc.frequency.setValueAtTime(80, now);
+    osc.frequency.exponentialRampToValueAtTime(850, now + 0.4);
+    osc2.type = this.waveform;
+    osc2.frequency.setValueAtTime(40, now);
+    osc2.frequency.exponentialRampToValueAtTime(425, now + 0.4);
+    gain.gain.setValueAtTime(0.15 * this.volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+    osc.connect(gain); osc2.connect(gain); gain.connect(this.ctx.destination);
+    osc.start(now); osc2.start(now); osc.stop(now + 0.5); osc2.stop(now + 0.5);
+  },
+  playHeal() {
+    if (!this.enabled) return;
+    this.init();
+    const now = this.ctx.currentTime;
+    const notes = [261.63, 329.63, 392.00, 523.25];
+    notes.forEach((freq, index) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = this.waveform;
+      osc.frequency.setValueAtTime(freq, now + index * 0.08);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.12 * this.volume, now + index * 0.08 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.08 + 0.3);
+      osc.connect(gain); gain.connect(this.ctx.destination);
+      osc.start(now + index * 0.08); osc.stop(now + index * 0.08 + 0.35);
+    });
+  },
+  playDamage() {
+    if (!this.enabled) return;
+    this.init();
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = this.waveform;
+    osc.frequency.setValueAtTime(160, now);
+    osc.frequency.linearRampToValueAtTime(50, now + 0.25);
+    gain.gain.setValueAtTime(0.2 * this.volume, now);
+    gain.gain.linearRampToValueAtTime(0.001, now + 0.25);
+    osc.connect(gain); gain.connect(this.ctx.destination);
+    osc.start(now); osc.stop(now + 0.3);
+  },
+  playLevelUp() {
+    if (!this.enabled) return;
+    this.init();
+    const now = this.ctx.currentTime;
+    const notes = [293.66, 349.23, 440.00, 587.33];
+    notes.forEach((freq, index) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = this.waveform;
+      osc.frequency.setValueAtTime(freq, now + index * 0.12);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.15 * this.volume, now + index * 0.12 + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.12 + 0.6);
+      osc.connect(gain); gain.connect(this.ctx.destination);
+      osc.start(now + index * 0.12); osc.stop(now + index * 0.12 + 0.75);
+    });
+  },
+  playBuzzer() {
+    if (!this.enabled) return;
+    this.init();
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(110, now);
+    gain.gain.setValueAtTime(0.18 * this.volume, now);
+    gain.gain.linearRampToValueAtTime(0.001, now + 0.18);
+    osc.connect(gain); gain.connect(this.ctx.destination);
+    osc.start(now); osc.stop(now + 0.18);
+  }
+};
+
+const activeColors = {
+  grass: { r: 22, g: 163, b: 74 }, 
+  silt: { r: 81, g: 70, b: 62 }, 
+  deadScrub: { r: 51, g: 65, b: 85 },
+  crag: { r: 21, g: 128, b: 61 }, 
+  forestHaven: { r: 37, g: 99, b: 235 }, 
+  gold: { r: 245, g: 158, b: 11 },
+  deepWater: { r: 30, g: 58, b: 95 },
+  shallowWater: { r: 56, g: 189, b: 248 },
+  house: { r: 107, g: 114, b: 128 },
+  river: { r: 37, g: 99, b: 235 },
+  dirt: { r: 120, g: 90, b: 70 },
+  lake: { r: 37, g: 99, b: 235 },
+  silver: { r: 241, g: 245, b: 249 }, 
+  crimson: { r: 220, g: 38, b: 38 }, 
+  steel: { r: 71, g: 85, b: 105 },
+  bone: { r: 248, g: 250, b: 252 }, 
+  wretch: { r: 16, g: 185, b: 129 }, 
+  husk: { r: 109, g: 40, b: 217 },
+  abomination: { r: 180, g: 83, b: 9 }, 
+  uiBg: { r: 9, g: 13, b: 22 }, 
+  uiAccent: { r: 220, g: 38, b: 38 }
+};
+
+function rgbToHex(rgb) {
+  const toHex = c => { const hex = Math.round(c).toString(16); return hex.length === 1 ? "0" + hex : hex; };
+  return "#" + toHex(rgb.r) + toHex(rgb.g) + toHex(rgb.b);
+}
+
+function rgbToThreeColor(rgb) { return new THREE.Color(rgb.r / 255, rgb.g / 255, rgb.b / 255); }
+
+const scene = new THREE.Scene();
+scene.background = rgbToThreeColor(activeColors.uiBg); 
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0; 
+document.body.appendChild(renderer.domElement);
+
+const clock = new THREE.Clock();
+const worldContainer = new THREE.Group();
+scene.add(worldContainer);
+
+const aspect = window.innerWidth / window.innerHeight;
+let zoomFactor = 25; // Or try an even smaller value like 10 or 5 for a very zoomed-in view
+const camera = new THREE.OrthographicCamera(-zoomFactor*aspect, zoomFactor*aspect, zoomFactor, -zoomFactor, -1000, 2000);
+const baseCamPos = new THREE.Vector3(0, 70, 45);
+camera.position.copy(baseCamPos);
+camera.lookAt(0, 0, 0);
+
+let isRotating = false;
+let prevMouseX = 0, prevMouseY = 0;
+let cameraTheta = Math.atan2(baseCamPos.x, baseCamPos.z);
+let cameraPhi = Math.acos(baseCamPos.y / baseCamPos.length());
+const cameraRadius = baseCamPos.length();
+
+let shakeTime = 0, shakeIntensity = 0;
+
+window.addEventListener("resize", () => {
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  updateCameraProjection();
+});
+
+let gameStarted = false;
+
+window.addEventListener("wheel", (e) => {
+  if (e.target.closest('#ui-stack')) return;
+  zoomFactor += e.deltaY * 0.035;
+  zoomFactor = Math.max(10, Math.min(zoomFactor, 125)); 
+  updateCameraProjection();
+});
+
+function updateCameraProjection() {
+  const currentAspect = window.innerWidth / window.innerHeight;
+  camera.left = -zoomFactor * currentAspect;
+  camera.right = zoomFactor * currentAspect;
+  camera.top = zoomFactor;
+  camera.bottom = -zoomFactor;
+  camera.updateProjectionMatrix();
+}
+
+function triggerCameraShake(intensity) { shakeIntensity = intensity; shakeTime = 12; }
+
+const ambient = new THREE.AmbientLight(0xffffff, 0.6); 
+scene.add(ambient);
+
+const sunkey = new THREE.DirectionalLight(0xfffbeb, 2.5); 
+sunkey.position.set(-35, 65, -20);
+sunkey.castShadow = true;
+sunkey.shadow.mapSize.width = 2048; sunkey.shadow.mapSize.height = 2048;
+sunkey.shadow.bias = -0.0004;
+sunkey.shadow.camera.left = -50;
+sunkey.shadow.camera.right = 50;
+sunkey.shadow.camera.top = 50;
+sunkey.shadow.camera.bottom = -50;
+scene.add(sunkey);
+
+const secondaryFill = new THREE.DirectionalLight(0xffffff, 0.8); 
+secondaryFill.position.set(30, 40, 20);
+scene.add(secondaryFill);
+
+const HEX = 2, R = 32;
+
+const HexUtils = {
+  dist(q1, r1, q2, r2) {
+    return (Math.abs(q1 - q2) + Math.abs(r1 - r2) + Math.abs((-q1 - r1) - (-q2 - r2))) / 2;
+  },
+  isValid(q, r) {
+    return Math.abs(q) <= R && Math.abs(r) <= R && Math.abs(-q - r) <= R;
+  },
+  toWorld(q, r) {
+    return {
+      x: HEX * Math.sqrt(3) * (q + r / 2),
+      z: HEX * 1.5 * r
+    };
+  }
+};
+
+const tileLookup = new Map();
+
+// --- SHARED GEOMETRY POOL ---
+// Defining these once prevents massive CPU/GPU churn during world generation
+const Geoms = {
+  coneTree: new THREE.ConeGeometry(0.22, 1.1, 5),
+  boxHouse: new THREE.BoxGeometry(0.75, 0.65, 0.75),
+  coneRoof: new THREE.ConeGeometry(0.7, 0.5, 4),
+  towerBody: new THREE.CylinderGeometry(0.32, 0.38, 1.2, 8),
+  towerRoof: new THREE.ConeGeometry(0.48, 0.6, 8),
+  unitLeg: new THREE.CylinderGeometry(0.09, 0.11, 0.38, 8),
+  unitTorso: new THREE.CylinderGeometry(0.38, 0.26, 0.65, 10),
+  unitHelm: new THREE.CylinderGeometry(0.22, 0.24, 0.4, 10),
+  swordBlade: new THREE.BoxGeometry(0.14, 1.5, 0.05),
+  shieldGeo: new THREE.ConeGeometry(0.38, 0.9, 3),
+  spearShaft: new THREE.CylinderGeometry(0.03, 0.03, 2.2, 8),
+  spearHead: new THREE.ConeGeometry(0.08, 0.4, 4),
+  bowCurve: new THREE.TorusGeometry(0.4, 0.03, 8, 12, Math.PI),
+  catapultBase: new THREE.BoxGeometry(1.2, 0.3, 1.6),
+  catapultArm: new THREE.BoxGeometry(0.15, 1.8, 0.15),
+  catapultWheel: new THREE.CylinderGeometry(0.25, 0.25, 0.1, 12),
+  barnBody: new THREE.BoxGeometry(1.0, 0.8, 1.2),
+  crop: new THREE.CylinderGeometry(0.04, 0.04, 0.6, 6),
+  barnRoof: new THREE.BoxGeometry(1.1, 0.4, 1.3)
+};
+Geoms.shieldGeo.rotateX(Math.PI);
+
+const shape = new THREE.Shape();
+for(let i=0; i<6; i++){
+  const a = (Math.PI / 3) * i + (Math.PI / 6); 
+  const x = HEX * Math.cos(a); const y = HEX * Math.sin(a);
+  if(i===0) shape.moveTo(x,y); else shape.lineTo(x,y);
+}
+shape.closePath();
+
+const extrudeSettings = { depth: 1.0, bevelEnabled: true, bevelSegments: 1, steps: 1, bevelSize: 0.04, bevelThickness: 0.06 };
+const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+geo.rotateX(-Math.PI/2); 
+// Normalize top surface (including bevel) to 0 and calculate total geometry height (depth + 2*bevelThickness)
+// bevelThickness is 0.06, depth is 1.0. Total height is 1.12.
+geo.translate(0, -1.06, 0); 
+
+const posAttr = geo.attributes.position;
+const colors = [];
+for (let i = 0; i < posAttr.count; i++) {
+  const lx = posAttr.getX(i); const lz = posAttr.getZ(i);
+  const d = Math.sqrt(lx*lx + lz*lz);
+  if (d > HEX * 0.88) colors.push(0.68, 0.72, 0.82); 
+  else colors.push(1.0, 1.0, 1.0);
+}
+geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+const brightGoldMat = new THREE.MeshStandardMaterial({color: rgbToThreeColor(activeColors.gold), metalness: 0.9, roughness: 0.15});
+const radiantSilverMat = new THREE.MeshStandardMaterial({color: rgbToThreeColor(activeColors.silver), metalness: 0.95, roughness: 0.1});
+const royalCrimsonMat = new THREE.MeshStandardMaterial({color: rgbToThreeColor(activeColors.crimson), roughness: 0.6});
+const deepKnightSteel = new THREE.MeshStandardMaterial({color: rgbToThreeColor(activeColors.steel), metalness: 0.8, roughness: 0.25});
+const voidSteelMat = new THREE.MeshStandardMaterial({color: 0x0f172a, metalness: 0.9, roughness: 0.2});
+const boneWhiteMat = new THREE.MeshStandardMaterial({color: rgbToThreeColor(activeColors.bone), roughness: 0.5});
+const wretchCarapaceMat = new THREE.MeshStandardMaterial({color: rgbToThreeColor(activeColors.wretch), roughness: 0.1, metalness: 0.4});
+const wretchFleshMat = new THREE.MeshStandardMaterial({color: 0x047857, roughness: 0.7});
+const huskRobeMat = new THREE.MeshStandardMaterial({color: rgbToThreeColor(activeColors.husk), roughness: 0.8});
+const abomBodyMat = new THREE.MeshStandardMaterial({color: rgbToThreeColor(activeColors.abomination), roughness: 0.6});
+const foliageMat = new THREE.MeshStandardMaterial({color: 0x14532d, roughness: 0.65});
+const woodMat = new THREE.MeshStandardMaterial({color: 0x92400e, roughness: 0.7});
+const abomArmorMat = new THREE.MeshStandardMaterial({color: 0x1e293b, metalness: 0.8, roughness: 0.3});
+const unifiedBaseMat = new THREE.MeshStandardMaterial({color: 0xd1d5db, roughness: 0.5});
+const baseGeo = new THREE.CylinderGeometry(0.75, 0.8, 0.15, 16);
+const bossBodyMat = new THREE.MeshStandardMaterial({color: 0x3b0764, roughness: 0.4, metalness: 0.2});
+const bossArmorMat = new THREE.MeshStandardMaterial({color: 0x0f172a, roughness: 0.2, metalness: 0.95});
+const bossGlowMat = new THREE.MeshBasicMaterial({color: 0xd946ef});
+const bossEyeMat = new THREE.MeshBasicMaterial({color: 0xfbbf24});
+
+// --- SEED-BASED RANDOM NUMBER GENERATOR (mulberry32) ---
+function mulberry32(a) {
+  return function() {
+    let t = a += 0x6D2B79F5;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+}
+let seededRandom = Math.random;
+let mapSeed = "";
+let pinnedWorldSeed = null;
+
+function hashSeedString(seedVal) {
+  let hash = 0;
+  for (let i = 0; i < seedVal.length; i++) {
+    hash = Math.imul(31, hash) + seedVal.charCodeAt(i) | 0;
+  }
+  return hash;
+}
+
+function initMapRandom() {
+  if (pinnedWorldSeed) {
+    mapSeed = pinnedWorldSeed;
+    seededRandom = mulberry32(hashSeedString(pinnedWorldSeed));
+  } else {
+    seededRandom = Math.random;
+    mapSeed = Math.floor(Math.random() * 1e9).toString(36);
+  }
+  const seedDisplay = document.getElementById("current-seed-val");
+  if (seedDisplay) {
+    seedDisplay.innerText = pinnedWorldSeed ? mapSeed : `${mapSeed} (random)`;
+  }
+}
+
+// --- PROP MATERIALS ---
+const keepStoneMat = new THREE.MeshStandardMaterial({color: 0x64748b, roughness: 0.7});
+const barnBodyMat = new THREE.MeshStandardMaterial({color: 0x991b1b, roughness: 0.7});
+const barnRoofMat = new THREE.MeshStandardMaterial({color: 0x334155});
+const cropMat = new THREE.MeshStandardMaterial({color: 0xeab308, roughness: 0.6});
+
+// --- BIOME-SPECIFIC WEATHER SYSTEM ---
+class WeatherSystem {
+  constructor() {
+    this.particleCount = 3000;
+    this.geometry = new THREE.BufferGeometry();
+    this.positions = new Float32Array(this.particleCount * 3);
+    this.velocities = [];
+    this.colors = new Float32Array(this.particleCount * 3);
+    
+    // Initialize positions and velocities
+    for (let i = 0; i < this.particleCount; i++) {
+      this.resetParticle(i);
+    }
+    
+    this.geometry.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
+    this.geometry.setAttribute('color', new THREE.BufferAttribute(this.colors, 3));
+    
+    this.material = new THREE.PointsMaterial({
+      size: 0.3,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.6,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    
+    this.points = new THREE.Points(this.geometry, this.material);
+    scene.add(this.points);
+    
+    this.currentChapter = 1;
+  }
+  
+  resetParticle(i, initY = false) {
+    const range = 180;
+    const hp = hero ? hero.position : new THREE.Vector3(0, 0, 0);
+    
+    this.positions[i * 3] = hp.x + (Math.random() - 0.5) * range;
+    this.positions[i * 3 + 1] = initY ? hp.y + 45 + Math.random() * 25 : hp.y + Math.random() * 70 - 10;
+    this.positions[i * 3 + 2] = hp.z + (Math.random() - 0.5) * range;
+    
+    const ch = this.currentChapter;
+    let vx = 0, vy = 0, vz = 0;
+    let r = 1, g = 1, b = 1;
+    
+    if (ch === 1) { // Fog
+      vx = (Math.random() - 0.5) * 0.05;
+      vy = (Math.random() - 0.5) * 0.01;
+      vz = (Math.random() - 0.5) * 0.05;
+      r = 0.6; g = 0.65; b = 0.7;
+    } else if (ch === 2) { // Ash & Embers
+      vx = (Math.random() - 0.5) * 0.08;
+      vy = -0.05 - Math.random() * 0.05;
+      vz = (Math.random() - 0.5) * 0.08;
+      if (Math.random() < 0.3) { // Ember
+        r = 1.0; g = 0.45; b = 0.1;
+      } else { // Ash
+        r = 0.3; g = 0.3; b = 0.3;
+      }
+    } else if (ch === 3) { // Sandstorm
+      vx = -0.2 - Math.random() * 0.2;
+      vy = -0.02 - Math.random() * 0.02;
+      vz = (Math.random() - 0.5) * 0.1;
+      r = 0.9; g = 0.75; b = 0.3;
+    } else if (ch === 4) { // Aether Sparkles
+      vx = (Math.random() - 0.5) * 0.04;
+      vy = 0.03 + Math.random() * 0.04;
+      vz = (Math.random() - 0.5) * 0.04;
+      if (Math.random() < 0.5) {
+        r = 0.65; g = 0.3; b = 0.95; // Purple
+      } else {
+        r = 0.1; g = 0.7; b = 0.85; // Cyan
+      }
+    } else if (ch === 5) { // Crimson Fog / Blood Rain
+      vx = (Math.random() - 0.5) * 0.02;
+      vy = -0.2 - Math.random() * 0.15; // Fast falling rain
+      vz = (Math.random() - 0.5) * 0.02;
+      r = 0.8; g = 0.1; b = 0.1;
+    } else if (ch === 6) { // Fire Embers
+      vx = (Math.random() - 0.5) * 0.1;
+      vy = 0.05 + Math.random() * 0.08;
+      vz = (Math.random() - 0.5) * 0.1;
+      r = 1.0; g = 0.3 + Math.random() * 0.2; b = 0.0;
+    }
+    
+    this.velocities[i] = { x: vx, y: vy, z: vz };
+    this.colors[i * 3] = r;
+    this.colors[i * 3 + 1] = g;
+    this.colors[i * 3 + 2] = b;
+  }
+  
+  setChapter(chapter) {
+    this.currentChapter = parseInt(chapter);
+    
+    const ch = this.currentChapter;
+    if (ch === 1) {
+      this.material.size = 1.5;
+      this.material.opacity = 0.25;
+    } else if (ch === 2) {
+      this.material.size = 0.4;
+      this.material.opacity = 0.6;
+    } else if (ch === 3) {
+      this.material.size = 0.3;
+      this.material.opacity = 0.5;
+    } else if (ch === 4) {
+      this.material.size = 0.5;
+      this.material.opacity = 0.7;
+    } else if (ch === 5) {
+      this.material.size = 0.25;
+      this.material.opacity = 0.65;
+    } else if (ch === 6) {
+      this.material.size = 0.5;
+      this.material.opacity = 0.75;
+    }
+    this.material.needsUpdate = true;
+    
+    for (let i = 0; i < this.particleCount; i++) {
+      this.resetParticle(i);
+    }
+    this.geometry.attributes.position.needsUpdate = true;
+    this.geometry.attributes.color.needsUpdate = true;
+  }
+  
+  update(frameAdjust) {
+    const hp = hero ? hero.position : new THREE.Vector3(0, 0, 0);
+    const range = 180;
+    
+    const posAttr = this.geometry.attributes.position;
+    
+    for (let i = 0; i < this.particleCount; i++) {
+      const idx = i * 3;
+      const vel = this.velocities[i];
+      
+      this.positions[idx] += vel.x * frameAdjust;
+      this.positions[idx + 1] += vel.y * frameAdjust;
+      this.positions[idx + 2] += vel.z * frameAdjust;
+      
+      const dx = this.positions[idx] - hp.x;
+      const dy = this.positions[idx + 1] - hp.y;
+      const dz = this.positions[idx + 2] - hp.z;
+      
+      if (Math.abs(dx) > range / 2 || dy < -10 || dy > 65 || Math.abs(dz) > range / 2) {
+        this.resetParticle(i, true);
+      }
+    }
+    
+    posAttr.needsUpdate = true;
+  }
+  
+  dispose() {
+    scene.remove(this.points);
+    this.geometry.dispose();
+    this.material.dispose();
+  }
+}
+let weatherSystem = null;
+
+const biomeMaterials = {
+  FOREST_HAVEN:  new THREE.MeshStandardMaterial({ color: rgbToThreeColor(activeColors.forestHaven), roughness: 0.15, metalness: 0.6, vertexColors: false }),
+  DEEP_WATER:    new THREE.MeshStandardMaterial({ color: rgbToThreeColor(activeColors.deepWater), roughness: 0.1, metalness: 0.7, vertexColors: false }),
+  SHALLOW_WATER: new THREE.MeshStandardMaterial({ color: rgbToThreeColor(activeColors.river), roughness: 0.2, metalness: 0.4, vertexColors: false }),
+  SILT:        new THREE.MeshStandardMaterial({ color: rgbToThreeColor(activeColors.silt), roughness: 0.9, metalness: 0.0, vertexColors: false }), 
+  DEAD_SCRUB:  new THREE.MeshStandardMaterial({ color: rgbToThreeColor(activeColors.deadScrub), roughness: 0.75, metalness: 0.1, vertexColors: false }),  
+  BUSH_TWIST:  new THREE.MeshStandardMaterial({ color: rgbToThreeColor(activeColors.grass), roughness: 0.8, metalness: 0.0, vertexColors: false }),  
+  CRAG:        new THREE.MeshStandardMaterial({ color: rgbToThreeColor(activeColors.crag), roughness: 0.55, metalness: 0.25, vertexColors: false }),
+  HOUSE:       new THREE.MeshStandardMaterial({ color: rgbToThreeColor(activeColors.house), roughness: 0.8, metalness: 0.0, vertexColors: false }),
+  DIRT:        new THREE.MeshStandardMaterial({ color: rgbToThreeColor(activeColors.dirt), roughness: 0.9, metalness: 0.0, vertexColors: false }),
+  RIVER:       new THREE.MeshStandardMaterial({ color: rgbToThreeColor(activeColors.river), roughness: 0.1, metalness: 0.3, vertexColors: false }),
+  FARM:        new THREE.MeshStandardMaterial({ color: rgbToThreeColor(activeColors.silt), roughness: 0.9, vertexColors: false }),
+  FIELD:       new THREE.MeshStandardMaterial({ color: rgbToThreeColor(activeColors.silt), roughness: 0.7, vertexColors: false }),
+  LAKE:        new THREE.MeshStandardMaterial({ color: rgbToThreeColor(activeColors.river), roughness: 0.1, metalness: 0.5, vertexColors: false })
+};
+
+let tiles = [], enclaves = [], enemies = [], allies = [], treasures = [], churches = [], prisons = [], rubbles = [];
+let boss = null, initialEnemyCount = 0;
+
+const SPAWN_LIMITS = { common: 40, elite: 12, boss: 1 };
+function getEnemyCount(category) {
+  if (category === 'elite') return enemies.filter(e => e.hp > 0 && (e.type === "Abomination" || e.type === "Catapult")).length;
+  if (category === 'common') return enemies.filter(e => e.hp > 0 && (e.type === "Wretch" || e.type === "Husk" || e.type === "Knight" || e.type === "Priest" || e.type === "Guard" || e.type === "Ranger" || e.type === "TownFolk")).length;
+  return enemies.filter(e => e.hp > 0 && e.isBoss).length;
+}
+
+function generateWorld(chapter) {
+  initMapRandom();
+
+  // Initialize or update the weather system
+  if (!weatherSystem) {
+    weatherSystem = new WeatherSystem();
+  }
+  weatherSystem.setChapter(chapter);
+
+  // Properly dispose of resources to prevent memory leaks during chapter transitions
+  tileLookup.clear();
+
+  // Clear active FX and their meshes
+  activeFx.forEach(fx => {
+    scene.remove(fx.mesh);
+    if (fx.mesh.geometry) fx.mesh.geometry.dispose();
+    if (fx.mesh.material) fx.mesh.material.dispose();
+  });
+  activeFx.length = 0;
+
+  worldContainer.traverse(node => {
+    if (node.isMesh) {
+      // Only dispose if it's NOT a pooled geometry or material
+      const isPooledGeo = Object.values(Geoms).includes(node.geometry) || node.geometry === geo || node.geometry === baseGeo;
+      if (node.geometry && !isPooledGeo) node.geometry.dispose();
+
+      const isPooledMat = Object.values(biomeMaterials).includes(node.material) || 
+                          Object.values(activeColors).includes(node.material) ||
+                          [unifiedBaseMat, foliageMat, woodMat, royalCrimsonMat, keepStoneMat, barnBodyMat, barnRoofMat, cropMat].includes(node.material);
+      if (node.material && !isPooledMat) {
+        if (Array.isArray(node.material)) node.material.forEach(m => m.dispose());
+        else node.material.dispose(); 
+      }
+    }
+  });
+  while(worldContainer.children.length > 0) worldContainer.remove(worldContainer.children[0]);
+  tiles = []; enclaves = []; enemies = []; allies = []; treasures = []; churches = []; prisons = []; rubbles = []; boss = null;
+  
+  const ch = parseInt(chapter);
+
+  // Randomize noise parameters for much more dramatic and large-scale coastlines
+  const borderFreq = 0.12 + seededRandom() * 0.1;
+  const borderOffsetQ = seededRandom() * Math.PI * 2;
+  const borderOffsetR = seededRandom() * Math.PI * 2;
+  const borderAmp = 5.5 + seededRandom() * 3.5;
+
+  const getShoreNoise = (qq, rr) => {
+    return (Math.sin(qq * borderFreq + borderOffsetQ) + Math.cos(rr * borderFreq + borderOffsetR)) * borderAmp +
+           (Math.sin(qq * borderFreq * 2.3 + borderOffsetR) + Math.cos(qq * borderFreq * 2.3 + borderOffsetQ)) * (borderAmp * 0.45);
+  };
+
+  // Randomize river parameters for procedural river systems
+  const rivAngle = seededRandom() * Math.PI * 2;
+  const rivCos = Math.cos(rivAngle);
+  const rivSin = Math.sin(rivAngle);
+  const rivFreq = 0.03 + seededRandom() * 0.03;
+  const rivAmp = 12 + seededRandom() * 8;
+  const rivOff = seededRandom() * 100;
+  const rivWidth = HEX * 1.5;
+
+  // Procedurally determine building locations
+  const encPos = [], churchPos = [], prisonPos = [];
+  const isValidLand = (q, r) => {
+    if (!HexUtils.isValid(q, r)) return false;
+    const d = (Math.abs(q) + Math.abs(r) + Math.abs(-q - r)) / 2;
+    const noise = getShoreNoise(q, r);
+    return ch === 4 || (d + noise) <= R - 4.5;
+  };
+  const hexNeighbors = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, -1], [-1, 1]];
+  const findLandPos = (targetArr, count, minDist, { clumpChance = 0.68, minClusterSep = 13 } = {}) => {
+    let attempts = 0;
+    while (targetArr.length < count && attempts < 1000) {
+      attempts++;
+      let q, r;
+      const occupied = encPos.concat(churchPos);
+      const growCluster = targetArr.length > 0 && seededRandom() < clumpChance;
+
+      if (growCluster) {
+        const parent = targetArr[Math.floor(seededRandom() * targetArr.length)];
+        const dirs = hexNeighbors.slice().sort(() => seededRandom() - 0.5);
+        let foundNeighbor = false;
+        for (const [dq, dr] of dirs) {
+          const nq = parent[0] + dq, nr = parent[1] + dr;
+          if (!isValidLand(nq, nr) || occupied.some(p => p[0] === nq && p[1] === nr)) continue;
+          q = nq; r = nr; foundNeighbor = true; break;
+        }
+        if (!foundNeighbor) {
+          let tries = 0;
+          do {
+            q = Math.floor(seededRandom() * (R * 2)) - R;
+            r = Math.floor(seededRandom() * (R * 2)) - R;
+            tries++;
+          } while (tries < 80 && (!HexUtils.isValid(q, r) || !isValidLand(q, r) || !targetArr.every(p => HexUtils.dist(q, r, p[0], p[1]) >= minClusterSep)));
+          if (tries >= 80) continue;
+        }
+      } else {
+        let tries = 0;
+        do {
+          q = Math.floor(seededRandom() * (R * 2)) - R;
+          r = Math.floor(seededRandom() * (R * 2)) - R;
+          tries++;
+        } while (tries < 80 && (
+          !HexUtils.isValid(q, r) ||
+          !isValidLand(q, r) ||
+          (targetArr.length > 0 && !targetArr.every(p => HexUtils.dist(q, r, p[0], p[1]) >= minClusterSep))
+        ));
+        if (tries >= 80) continue;
+      }
+
+      if (!HexUtils.isValid(q, r) || HexUtils.dist(0, 0, q, r) < minDist) continue;
+      if (occupied.some(p => p[0] === q && p[1] === r)) continue;
+      if (!isValidLand(q, r)) continue;
+      targetArr.push([q, r]);
+    }
+  };
+  findLandPos(encPos, 12, 6, { clumpChance: 0.72, minClusterSep: 14 });
+
+  const clusterEnclaves = (positions) => {
+    const clusters = [];
+    const assigned = new Set();
+    for (const pos of positions) {
+      const key = `${pos[0]},${pos[1]}`;
+      if (assigned.has(key)) continue;
+      const cluster = [];
+      const queue = [pos];
+      assigned.add(key);
+      while (queue.length) {
+        const [cq, cr] = queue.shift();
+        cluster.push([cq, cr]);
+        for (const [dq, dr] of hexNeighbors) {
+          const nq = cq + dq, nr = cr + dr;
+          const nkey = `${nq},${nr}`;
+          if (assigned.has(nkey)) continue;
+          if (positions.some(p => p[0] === nq && p[1] === nr)) {
+            assigned.add(nkey);
+            queue.push([nq, nr]);
+          }
+        }
+      }
+      clusters.push(cluster);
+    }
+    return clusters;
+  };
+
+  const cityClusters = clusterEnclaves(encPos);
+  for (const city of cityClusters) {
+    if (seededRandom() < 0.5) continue;
+    const occupied = encPos.concat(churchPos);
+    const candidates = [];
+    for (const [eq, er] of city) {
+      for (const [dq, dr] of hexNeighbors) {
+        const nq = eq + dq, nr = er + dr;
+        if (!isValidLand(nq, nr)) continue;
+        if (occupied.some(p => p[0] === nq && p[1] === nr)) continue;
+        if (candidates.some(c => c[0] === nq && c[1] === nr)) continue;
+        candidates.push([nq, nr]);
+      }
+    }
+    if (candidates.length === 0) continue;
+    churchPos.push(candidates[Math.floor(seededRandom() * candidates.length)]);
+  }
+
+  // Seed exactly one lake per map to ensure connectivity and no outliers
+  let lq = null, lr = null;
+  for (let lAttempts = 0; lAttempts < 200; lAttempts++) {
+    const tq = Math.floor(seededRandom() * (R * 1.4)) - (R * 0.7);
+    const tr = Math.floor(seededRandom() * (R * 1.4)) - (R * 0.7);
+    if (HexUtils.isValid(tq, tr) && HexUtils.dist(0, 0, tq, tr) > 10) { lq = tq; lr = tr; break; }
+  }
+  const lakeSeed = lq !== null ? [lq, lr] : null;
+  const lakeRadius = 2 + Math.floor(seededRandom() * 2);
+
+  // Procedurally seed rural areas far from the clumped town centers
+  const farmSeeds = [];
+  let farmAttempts = 0;
+  const townBuildings = encPos.concat(churchPos);
+
+  // 1-2 prison carts total for the whole map
+  const prisonTarget = 1 + Math.floor(seededRandom() * 2);
+  let pAttempts = 0;
+  while (prisonPos.length < prisonTarget && pAttempts < 1000) {
+    pAttempts++;
+    let pq = Math.floor(seededRandom() * (R * 2)) - R;
+    let pr = Math.floor(seededRandom() * (R * 2)) - R;
+    if (!HexUtils.isValid(pq, pr)) continue;
+    const distFromTown = townBuildings.reduce((min, p) => Math.min(min, HexUtils.dist(pq, pr, p[0], p[1])), 999);
+    if (distFromTown <= 10) continue;
+    if (prisonPos.some(p => HexUtils.dist(pq, pr, p[0], p[1]) < 8)) continue;
+    const dDist = (Math.abs(pq) + Math.abs(pr) + Math.abs(-pq - pr)) / 2;
+    const eNoise = getShoreNoise(pq, pr);
+    if (ch === 4 || (dDist + eNoise) <= R - 4.5) prisonPos.push([pq, pr]);
+  }
+
+  while (farmSeeds.length < 3 && farmAttempts < 500) {
+    farmAttempts++;
+    let fq = Math.floor(seededRandom() * (R * 2)) - R;
+    let fr = Math.floor(seededRandom() * (R * 2)) - R;
+    if (!HexUtils.isValid(fq, fr)) continue;
+    const distFromTown = townBuildings.reduce((min, p) => Math.min(min, HexUtils.dist(fq, fr, p[0], p[1])), 999);
+    const dDist = (Math.abs(fq) + Math.abs(fr) + Math.abs(-fq-fr)) / 2;
+    const eNoise = getShoreNoise(fq, fr);
+    if (distFromTown > 9 && (dDist + eNoise) <= R - 6) farmSeeds.push([fq, fr]);
+  }
+
+  for(let q=-R; q<=R; q++){
+    for(let r=-R; r<=R; r++){
+      if(Math.abs(-q-r)>R) continue;
+      const dist = (Math.abs(q) + Math.abs(r) + Math.abs(-q-r)) / 2;
+      
+      // Apply randomized offsets and frequency to the shoreline noise
+      // This results in unique "seeds" for the map's organic border
+      const edgeNoise = getShoreNoise(q, r);
+      const effectiveDist = dist + edgeNoise;
+
+      const isEnclavePos = encPos.some(p => p[0] === q && p[1] === r);
+      const isChurchPos = churchPos.some(p => p[0] === q && p[1] === r);
+      const isPrisonPos = prisonPos.some(p => p[0] === q && p[1] === r);
+      const isSettlementPos = isEnclavePos || isChurchPos;
+      const isBuildingPos = isSettlementPos || isPrisonPos;
+      const roll = seededRandom();
+      let biomeKey = "DEAD_SCRUB";
+
+      // Procedural river calculation using world coordinates for guaranteed connectivity
+      const worldP = HexUtils.toWorld(q, r);
+      const proj = worldP.x * rivCos + worldP.z * rivSin;
+      const perp = -worldP.x * rivSin + worldP.z * rivCos;
+      const riverVal = perp + Math.sin(proj * rivFreq + rivOff) * rivAmp;
+      let isRiver = Math.abs(riverVal) < rivWidth;
+
+      // Global Edge/Shoreline logic (Land -> Silt -> Water)
+      // Exclude Chapter 4 (Void) to maintain its floating island aesthetic
+      if (ch !== 4 && effectiveDist > R - 1.5) biomeKey = "DEEP_WATER";
+      else if (ch !== 4 && effectiveDist > R - 4.5) biomeKey = "SILT";
+      else if (ch === 1) { // Iron & Gloom (Standard)
+        if (isRiver) biomeKey = "RIVER";
+        else if (roll < 0.15) biomeKey = "CRAG";
+        else if (roll < 0.30) biomeKey = "DIRT";
+        else if (roll < 0.55) biomeKey = "BUSH_TWIST";
+      } else if (ch === 2) { // Obsidian Tides (Volcanic/Dark)
+        if (isRiver || roll < 0.1) biomeKey = "RIVER";
+        else if (roll < 0.4) biomeKey = "SILT";
+      } else if (ch === 3) { // Gilded Blight (Desert/Gold)
+        isRiver = false; // Dry lands
+        if (roll < 0.6) biomeKey = "SILT";
+        else if (roll < 0.8) biomeKey = "CRAG";
+        else if (roll < 0.85) biomeKey = "FOREST_HAVEN"; // Oases
+      } else if (ch === 4) { // Echoes of Aether (Floating/Void)
+        isRiver = false;
+        if (roll < 0.45) biomeKey = "DEEP_WATER"; // The Void
+        else if (roll < 0.8) biomeKey = "FOREST_HAVEN"; 
+        else biomeKey = "CRAG";
+      } else if (ch === 5) { // Crimson Citadel (Gore/War)
+        if (isRiver) biomeKey = "RIVER";
+        else if (roll < 0.3) biomeKey = "DEAD_SCRUB";
+        else if (roll < 0.5) biomeKey = "CRAG";
+      } else if (ch === 6) { // Final Ember (Scorched Earth)
+        if (dist < 5) biomeKey = "CRAG";
+        else if (isRiver) biomeKey = "RIVER"; // Lava
+        else if (roll < 0.7) biomeKey = "SILT"; // Ash
+      }
+
+      // Towns and churches sit on grey building hexes; prison carts keep the underlying terrain color
+      if (isSettlementPos) biomeKey = "HOUSE";
+
+      // Biasing HOUSE tiles to appear only near main town centers (Enclaves/Churches)
+      const distToTown = townBuildings.length > 0 ? townBuildings.reduce((min, p) => Math.min(min, HexUtils.dist(q, r, p[0], p[1])), 999) : 999;
+      const houseChance = distToTown <= 4.5 ? 1.0 : 0; 
+      
+      // Apply Farm and Field logic based on distance from Rural Seeds
+      const distToFarmSeed = farmSeeds.length > 0 ? farmSeeds.reduce((min, p) => Math.min(min, HexUtils.dist(q, r, p[0], p[1])), 999) : 999;
+      if (!isBuildingPos && !isWaterBiome(biomeKey) && distToFarmSeed === 0) biomeKey = "FARM";
+      else if (!isBuildingPos && !isWaterBiome(biomeKey) && distToFarmSeed <= 2 && roll < 0.7) biomeKey = "FIELD";
+      
+      // Single contiguous lake logic (No outliers)
+      if (lakeSeed && !isBuildingPos && biomeKey !== "DEEP_WATER" && HexUtils.dist(q, r, lakeSeed[0], lakeSeed[1]) <= lakeRadius) biomeKey = "LAKE";
+
+      if (!isBuildingPos && roll < houseChance && !isWaterBiome(biomeKey)) biomeKey = "HOUSE";
+
+      const tile = new THREE.Mesh(geo, biomeMaterials[biomeKey]);
+      const p = HexUtils.toWorld(q,r);
+      
+      // Procedural height calculation independent of the biome pieces
+      let tileY = 0;
+      if (isWaterBiome(biomeKey)) {
+        // Maintain depth tiers for water biomes to keep the shoreline logic intact
+        if (biomeKey === "DEEP_WATER") tileY = -1.2;
+        else if (biomeKey === "SHALLOW_WATER") tileY = -0.6;
+        else tileY = -0.8; // Rivers and Havens
+      } else {
+        // Land height is now driven by coordinate-based noise for varied terrain elevation
+        const noiseH = (Math.sin(q * 0.22 + borderOffsetQ) + Math.cos(r * 0.22 + borderOffsetR)) * 1.3;
+        tileY = Math.max(0.1, noiseH + 0.7);
+      }
+
+      tile.position.set(p.x, tileY, p.z);
+      // Stretch hexes down to plane at Y=-5.0. 
+      // Since the normalized geo height is 1.12, we divide by 1.12 to get exact world units.
+      tile.scale.y = (tileY + 5.0) / 1.12; 
+      tile.userData = { q, r, biomeKey };
+      tile.updateMatrix();
+      tile.updateMatrixWorld();
+      tileLookup.set(`${q},${r}`, tile);
+      tiles.push(tile);
+    }
+  }
+
+  // Post-processing to ensure DEEP_WATER is bordered by SHALLOW_WATER
+  const shallowWaterCandidates = new Set();
+
+  for (const tile of tiles) {
+    if (tile.userData.biomeKey === "DEEP_WATER") {
+      const q = tile.userData.q;
+      const r = tile.userData.r;
+      const neighbors = [[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]]; // Hexagonal neighbors
+      for (const [dq, dr] of neighbors) {
+        const nq = q + dq;
+        const nr = r + dr;
+        const neighborTile = tileLookup.get(`${nq},${nr}`);
+        if (neighborTile) {
+          const neighborBiome = neighborTile.userData.biomeKey;
+          // If the neighbor is land (not water) or silt, it should become shallow water
+          // We don't change existing RIVER, LAKE, FOREST_HAVEN, or SHALLOW_WATER
+          if (!isWaterBiome(neighborBiome) || neighborBiome === "SILT") {
+            shallowWaterCandidates.add(`${nq},${nr}`);
+          }
+        }
+      }
+    }
+  }
+
+  // Apply the changes to candidate tiles
+  for (const qrString of shallowWaterCandidates) {
+    const tile = tileLookup.get(qrString);
+    if (tile) {
+      tile.userData.biomeKey = "SHALLOW_WATER";
+      tile.material = biomeMaterials.SHALLOW_WATER; // Update material
+      const targetY = -0.6; // Standard height for SHALLOW_WATER
+      tile.position.y = targetY;
+      tile.scale.y = (targetY + 5.0) / 1.12; // Recalculate scale
+      tile.updateMatrix();
+      tile.updateMatrixWorld();
+    }
+  }
+
+  // Validate map connectivity and carve paths if needed
+  const reachableTiles = validateAndCarveConnectivity(encPos, churchPos, prisonPos);
+
+  // Create InstancedMesh for each biome
+  const biomeCounts = {};
+  for (const tile of tiles) {
+    const bKey = tile.userData.biomeKey;
+    biomeCounts[bKey] = (biomeCounts[bKey] || 0) + 1;
+  }
+
+  const biomeInstancedMeshes = {};
+  for (const bKey of Object.keys(biomeMaterials)) {
+    const count = biomeCounts[bKey] || 0;
+    if (count > 0) {
+      const instMesh = new THREE.InstancedMesh(geo, biomeMaterials[bKey], count);
+      instMesh.castShadow = true;
+      instMesh.receiveShadow = true;
+      worldContainer.add(instMesh);
+      biomeInstancedMeshes[bKey] = {
+        mesh: instMesh,
+        index: 0
+      };
+    }
+  }
+
+  for (const tile of tiles) {
+    const bKey = tile.userData.biomeKey;
+    const instData = biomeInstancedMeshes[bKey];
+    if (instData) {
+      instData.mesh.setMatrixAt(instData.index, tile.matrix);
+      instData.index++;
+    }
+  }
+
+  for (const bKey of Object.keys(biomeInstancedMeshes)) {
+    biomeInstancedMeshes[bKey].mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  // Post-prop placement after all biome adjustments are final
+  const propMatrices = {
+    unifiedBase: [],
+    coneTree: [],
+    boxHouse: [],
+    coneRoof: [],
+    towerBody: [],
+    towerRoof: [],
+    barnBody: [],
+    barnRoof: [],
+    crop: []
+  };
+
+  for (const tile of tiles) {
+    const { q, r, biomeKey } = tile.userData;
+    const p = tile.position;
+    const isSettlementPos = encPos.some(pos => pos[0] === q && pos[1] === r) ||
+                            churchPos.some(pos => pos[0] === q && pos[1] === r);
+    const isPrisonHex = prisonPos.some(pos => pos[0] === q && pos[1] === r);
+    if (isPrisonHex) continue;
+
+    if (biomeKey === "CRAG") {
+      for (let i = 0; i < 3; i++) {
+        const bAng = (i / 3) * Math.PI * 2 + 0.5; const bRad = 0.9;
+        const gx = p.x + Math.cos(bAng) * bRad;
+        const gy = tile.position.y;
+        const gz = p.z + Math.sin(bAng) * bRad;
+
+        const baseM = new THREE.Matrix4().makeTranslation(gx, gy + 0.075, gz);
+        propMatrices.unifiedBase.push(baseM);
+
+        for (let j = 0; j < 3; j++) {
+          const ang = (j / 3) * Math.PI * 2;
+          const lx = Math.cos(ang) * 0.35;
+          const ly = 0.15 + 0.55;
+          const lz = Math.sin(ang) * 0.35;
+
+          const treeM = new THREE.Matrix4().makeTranslation(gx + lx, gy + ly, gz + lz);
+          propMatrices.coneTree.push(treeM);
+        }
+      }
+    } else if (biomeKey === "HOUSE" && !isSettlementPos) {
+      const numBases = Math.floor(seededRandom() * 3) + 1;
+      for (let i = 0; i < numBases; i++) {
+        const ang = (i / numBases) * Math.PI * 2 + 0.5; const rad = numBases > 1 ? 0.9 : 0;
+        const gx = p.x + Math.cos(ang) * rad;
+        const gy = tile.position.y;
+        const gz = p.z + Math.sin(ang) * rad;
+
+        const baseM = new THREE.Matrix4().makeTranslation(gx, gy + 0.075, gz);
+        propMatrices.unifiedBase.push(baseM);
+
+        const isHouse = seededRandom() < 0.65;
+        if (isHouse) {
+          const bodyM = new THREE.Matrix4().makeTranslation(gx, gy + 0.15 + 0.325, gz);
+          propMatrices.boxHouse.push(bodyM);
+
+          const roofM = new THREE.Matrix4().compose(
+            new THREE.Vector3(gx, gy + 0.15 + 0.65 + 0.25, gz),
+            new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4),
+            new THREE.Vector3(1, 1, 1)
+          );
+          propMatrices.coneRoof.push(roofM);
+        } else {
+          const keepM = new THREE.Matrix4().makeTranslation(gx, gy + 0.15 + 0.55, gz);
+          propMatrices.towerBody.push(keepM);
+
+          const roofM = new THREE.Matrix4().makeTranslation(gx, gy + 0.15 + 1.1 + 0.25, gz);
+          propMatrices.towerRoof.push(roofM);
+        }
+      }
+    } else if (biomeKey === "FARM") {
+      const gx = p.x;
+      const gy = tile.position.y;
+      const gz = p.z;
+
+      const baseM = new THREE.Matrix4().makeTranslation(gx, gy + 0.075, gz);
+      propMatrices.unifiedBase.push(baseM);
+
+      const barnM = new THREE.Matrix4().makeTranslation(gx, gy + 0.15 + 0.4, gz);
+      propMatrices.barnBody.push(barnM);
+
+      const roofM = new THREE.Matrix4().makeTranslation(gx, gy + 0.15 + 0.9, gz);
+      propMatrices.barnRoof.push(roofM);
+    } else if (biomeKey === "FIELD") {
+      const numBases = 3;
+      for (let i = 0; i < numBases; i++) {
+        const bAng = (i / numBases) * Math.PI * 2 + 0.5; const bRad = 0.9;
+        const gx = p.x + Math.cos(bAng) * bRad;
+        const gy = tile.position.y;
+        const gz = p.z + Math.sin(bAng) * bRad;
+
+        const baseM = new THREE.Matrix4().makeTranslation(gx, gy + 0.075, gz);
+        propMatrices.unifiedBase.push(baseM);
+
+        for (let j = 0; j < 6; j++) {
+          const ang = (j / 6) * Math.PI * 2;
+          const rad = 0.45;
+          const lx = Math.cos(ang) * rad;
+          const ly = 0.15 + 0.3;
+          const lz = Math.sin(ang) * rad;
+
+          const rotZ = (seededRandom() - 0.5) * 0.4;
+          const cropM = new THREE.Matrix4().compose(
+            new THREE.Vector3(gx + lx, gy + ly, gz + lz),
+            new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), rotZ),
+            new THREE.Vector3(1, 1, 1)
+          );
+          propMatrices.crop.push(cropM);
+        }
+      }
+    }
+  }
+
+  const createInstancedProps = (geo, mat, matrices) => {
+    if (matrices.length === 0) return;
+    const instMesh = new THREE.InstancedMesh(geo, mat, matrices.length);
+    instMesh.castShadow = true;
+    instMesh.receiveShadow = true;
+    for (let i = 0; i < matrices.length; i++) {
+      instMesh.setMatrixAt(i, matrices[i]);
+    }
+    instMesh.instanceMatrix.needsUpdate = true;
+    worldContainer.add(instMesh);
+  };
+
+  createInstancedProps(baseGeo, unifiedBaseMat, propMatrices.unifiedBase);
+  createInstancedProps(Geoms.coneTree, foliageMat, propMatrices.coneTree);
+  createInstancedProps(Geoms.boxHouse, woodMat, propMatrices.boxHouse);
+  createInstancedProps(Geoms.coneRoof, royalCrimsonMat, propMatrices.coneRoof);
+  createInstancedProps(Geoms.towerBody, keepStoneMat, propMatrices.towerBody);
+  createInstancedProps(Geoms.towerRoof, royalCrimsonMat, propMatrices.towerRoof);
+  createInstancedProps(Geoms.barnBody, barnBodyMat, propMatrices.barnBody);
+  createInstancedProps(Geoms.barnRoof, barnRoofMat, propMatrices.barnRoof);
+  createInstancedProps(Geoms.crop, cropMat, propMatrices.crop);
+
+  churchPos.forEach(pos => {
+    const tile = tileLookup.get(`${pos[0]},${pos[1]}`);
+    const b = tile ? tile.userData.biomeKey : "";
+    if (tile && !isWaterBiome(b)) {
+      const m = createChurch(); worldContainer.add(m); place(m, pos[0], pos[1]);
+      churches.push({ q: pos[0], r: pos[1], mesh: m, hp: 45 });
+    }
+  });
+  
+  encPos.forEach(pos => { 
+    const tile = tileLookup.get(`${pos[0]},${pos[1]}`);
+    const b = tile ? tile.userData.biomeKey : "";
+    if (tile && !isWaterBiome(b)) {
+      const m = createRuinedEnclave(); worldContainer.add(m); place(m, pos[0], pos[1]); 
+      enclaves.push({ q: pos[0], r: pos[1], mesh: m });
+    }
+  });
+
+  prisonPos.forEach(pos => {
+    const tile = tileLookup.get(`${pos[0]},${pos[1]}`);
+    if (tile && !isWaterBiome(tile.userData.biomeKey)) {
+      const m = createPrison(); worldContainer.add(m); place(m, pos[0], pos[1]);
+      prisons.push({ q: pos[0], r: pos[1], mesh: m, hp: 50, ap: 0 });
+    }
+  });
+
+  // Map starts empty of enemies; reinforcements arrive turn-by-turn.
+  initialEnemyCount = 15; 
+
+  for(let i=0; i<10; i++){
+    let tq, tr, attempts = 0;
+    do {
+      tq = Math.floor(seededRandom()*(R*2))-R; tr = Math.floor(seededRandom()*(R*2))-R;
+      attempts++;
+      if(!HexUtils.isValid(tq, tr)) continue;
+      const targetTile = tileLookup.get(`${tq},${tr}`);
+      const isLiquid = !targetTile || isWaterBiome(targetTile.userData.biomeKey);
+      const isReachable = targetTile && reachableTiles.has(`${tq},${tr}`);
+      if(!isLiquid && isReachable && !enemies.some(e=>e.q===tq && e.r===tr) && !treasures.some(t=>t.q===tq && t.r===tr) && HexUtils.dist(0,0,tq,tr) > 2) {
+        const mesh = createIronCoffre(); worldContainer.add(mesh); place(mesh, tq, tr);
+        treasures.push({ q: tq, r: tr, mesh, taken: false });
+        break;
+      }
+    } while (attempts < 100);
+  }
+  if (hero) {
+    worldContainer.add(hero);
+    state.q = 0; state.r = 0;
+    place(hero, 0, 0);
+    hero.userData.targetY = hero.position.y;
+    hero.position.y += 25;
+    hero.userData.isSpawning = true;
+  }
+}
+
+function sampleSpawn(type, q, r) {
+  const mesh = createMonster(type);
+  worldContainer.add(mesh);
+  place(mesh, q, r);
+  const stats = {
+    "Wretch": { hp: 18, atk: 5, range: 1 },
+    "Husk": { hp: 25, atk: 8, range: 1 },
+    "Abomination": { hp: 45, atk: 12, range: 1 },
+    "Knight": { hp: 35, atk: 10, range: 1 },
+    "Priest": { hp: 30, atk: 0, range: 1 },
+    "Guard": { hp: 40, atk: 12, range: 1 },
+    "Ranger": { hp: 25, atk: 10, range: 3 },
+    "TownFolk": { hp: 12, atk: 4, range: 1 },
+    "Catapult": { hp: 80, atk: 20, range: 4 },
+    "Freed Prisoner": { hp: 15, atk: 6, range: 1, faction: 'neutral' }
+  }[type] || { hp: 20, atk: 5 };
+
+  const humanFactions = ["Knight", "Priest", "Guard", "Ranger", "TownFolk", "Catapult"];
+  const supernaturalFactions = ["Wretch", "Husk", "Abomination"];
+  const faction = humanFactions.includes(type) ? 'human' : (supernaturalFactions.includes(type) ? 'supernatural' : 'neutral');
+
+  enemies.push({ type, q, r, ...stats, maxHp: stats.hp, mesh, faction, maxAp: type === "Catapult" ? 1 : 2, aggroRange: type === "Catapult" ? 12 : 6 });
+}
+
+function spawnAlly(type, q, r, homeQ, homeR) {
+  const mesh = createMonster(type);
+  // Use a different base color for allies to distinguish them
+  const friendlyBaseMat = new THREE.MeshStandardMaterial({color: 0x3b82f6, roughness: 0.5});
+  mesh.traverse(child => {
+    if (child.isMesh && child.material === unifiedBaseMat) {
+      child.material = friendlyBaseMat;
+    }
+  });
+  worldContainer.add(mesh);
+  place(mesh, q, r);
+  const stats = { "Freed Prisoner": { hp: 15, atk: 6, range: 1 } }[type] || { hp: 10, atk: 5 };
+  allies.push({ type, q, r, ...stats, maxHp: stats.hp, mesh, maxAp: 2, homeQ, homeR, leashRange: 8 });
+}
+function checkBossSpawn() {
+  if (!boss && enemies.filter(e => !e.isBoss && e.hp <= 0).length >= initialEnemyCount) spawnBoss();
+}
+
+function createBlackKnight() {
+  const group = new THREE.Group();
+  const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+  base.position.y = 0.075; base.castShadow = true; group.add(base);
+  
+  const lLeg = new THREE.Mesh(Geoms.unitLeg, voidSteelMat);
+  lLeg.position.set(-0.18, 0.25, 0); group.add(lLeg);
+  const rLeg = new THREE.Mesh(Geoms.unitLeg, voidSteelMat);
+  rLeg.position.set(0.18, 0.25, 0); group.add(rLeg);
+  
+  const torso = new THREE.Mesh(Geoms.unitTorso, voidSteelMat);
+  torso.position.y = 0.72; torso.castShadow = true; group.add(torso);
+
+  const sword = new THREE.Group();
+  const blade = new THREE.Mesh(Geoms.swordBlade, deepKnightSteel);
+  blade.position.y = 0.75; sword.add(blade);
+  const guard = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.05, 0.08), voidSteelMat);
+  guard.position.y = 0.02; sword.add(guard);
+  const hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.3, 8), royalCrimsonMat);
+  hilt.position.y = -0.15; sword.add(hilt);
+  sword.position.set(0.52, 0.8, 0.35); sword.rotation.set(-0.7, 0.1, -0.3);
+  group.add(sword);
+
+  const helm = new THREE.Mesh(Geoms.unitHelm, voidSteelMat);
+  helm.position.y = 1.25; helm.castShadow = true; group.add(helm);
+  
+  const visorGlow = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.04, 0.05), new THREE.MeshBasicMaterial({color: 0xef4444}));
+  visorGlow.position.set(0, 1.28, 0.2); group.add(visorGlow);
+
+  return group;
+}
+
+function createEnemyKnight() {
+  const group = new THREE.Group();
+  const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+  base.position.y = 0.075; base.castShadow = true; group.add(base);
+  const lLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.38, 8), deepKnightSteel);
+  lLeg.position.set(-0.18, 0.25, 0); group.add(lLeg);
+  const rLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.38, 8), deepKnightSteel);
+  rLeg.position.set(0.18, 0.25, 0); group.add(rLeg);
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.26, 0.65, 10), deepKnightSteel);
+  torso.position.y = 0.72; torso.castShadow = true; group.add(torso);
+  const goldTrim = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.68, 0.4), brightGoldMat);
+  goldTrim.position.set(0, 0.72, 0.05); group.add(goldTrim);
+  const lPauldron = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 12), brightGoldMat);
+  lPauldron.position.set(-0.45, 0.95, 0); lPauldron.scale.set(1.2, 1, 1); group.add(lPauldron);
+  const rPauldron = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 12), brightGoldMat);
+  rPauldron.position.set(0.45, 0.95, 0); rPauldron.scale.set(1.2, 1, 1); group.add(rPauldron);
+  const shieldGeo = new THREE.ConeGeometry(0.38, 0.9, 3);
+  shieldGeo.rotateX(Math.PI);
+  const shield = new THREE.Mesh(shieldGeo, royalCrimsonMat);
+  shield.position.set(-0.6, 0.65, 0.25); shield.rotation.set(0.2, Math.PI/4, 0.5);
+  shield.scale.set(1, 1, 0.2);
+  const shieldRim = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.9, 0.08), brightGoldMat);
+  shieldRim.position.set(-0.6, 0.65, 0.28); shieldRim.rotation.copy(shield.rotation);
+  group.add(shield); group.add(shieldRim);
+  const sword = new THREE.Group();
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.5, 0.05), radiantSilverMat);
+  blade.position.y = 0.75; sword.add(blade);
+  const bladeCore = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.2, 0.07), new THREE.MeshBasicMaterial({color: 0x60a5fa})); 
+  bladeCore.position.y = 0.75; sword.add(bladeCore);
+  const guard = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.06, 0.08), brightGoldMat);
+  guard.position.y = 0.02; sword.add(guard);
+  const hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.3, 8), royalCrimsonMat);
+  hilt.position.y = -0.15; sword.add(hilt);
+  sword.position.set(0.52, 0.8, 0.35); sword.rotation.set(-0.7, 0.1, -0.3);
+  group.add(sword);
+  const cape = new THREE.Mesh(new THREE.ConeGeometry(0.45, 0.95, 8), royalCrimsonMat);
+  cape.position.set(0, 0.5, -0.28); cape.rotation.x = 0.15; group.add(cape);
+  const helm = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 0.4, 10), deepKnightSteel);
+  helm.position.y = 1.25; helm.castShadow = true; group.add(helm);
+  const visorGlow = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.04, 0.05), new THREE.MeshBasicMaterial({color: 0x93c5fd}));
+  visorGlow.position.set(0, 1.28, 0.2); group.add(visorGlow);
+  const plume = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.08, 6, 16, Math.PI), royalCrimsonMat);
+  plume.position.set(0, 1.5, -0.1); plume.rotation.y = Math.PI/2; group.add(plume);
+  return group;
+}
+
+function createMonster(type) {
+  if (type === "Knight") return createEnemyKnight();
+  if (type === "Priest") {
+    const group = new THREE.Group();
+    const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+    base.position.y = 0.075; group.add(base);
+    const robe = new THREE.Mesh(new THREE.ConeGeometry(0.4, 1.2, 8), boneWhiteMat);
+    robe.position.y = 0.75; group.add(robe);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), wretchFleshMat);
+    head.position.y = 1.35; group.add(head);
+    const hood = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.4, 8), huskRobeMat);
+    hood.position.y = 1.5; group.add(hood);
+    const cross = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.1), brightGoldMat);
+    cross.position.set(0.3, 1.0, 0.2); group.add(cross);
+    return group;
+  }
+  if (type === "Guard") {
+    const group = new THREE.Group();
+    const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+    base.position.y = 0.075; group.add(base);
+    const body = new THREE.Mesh(Geoms.unitTorso, deepKnightSteel);
+    body.position.y = 0.72; group.add(body);
+    const helm = new THREE.Mesh(Geoms.unitHelm, deepKnightSteel);
+    helm.position.y = 1.25; group.add(helm);
+    const spear = new THREE.Group();
+    const shaft = new THREE.Mesh(Geoms.spearShaft, woodMat);
+    spear.add(shaft);
+    const head = new THREE.Mesh(Geoms.spearHead, radiantSilverMat);
+    head.position.y = 1.1; spear.add(head);
+    spear.position.set(0.5, 0.8, 0.2); spear.rotation.x = -0.2;
+    group.add(spear);
+    return group;
+  }
+  if (type === "Freed Prisoner") {
+    const group = new THREE.Group();
+    const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+    base.position.y = 0.075; group.add(base);
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 0.8, 8), new THREE.MeshStandardMaterial({color: 0x78350f, roughness: 0.9}));
+    body.position.y = 0.6; group.add(body);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), wretchFleshMat);
+    head.position.y = 1.1; group.add(head);
+    const shackle = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.02, 8, 8), deepKnightSteel);
+    shackle.position.set(0.2, 0.5, 0);
+    shackle.rotation.y = Math.PI/2;
+    group.add(shackle);
+    return group;
+  }
+  if (type === "Ranger") {
+    const group = new THREE.Group();
+    const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+    base.position.y = 0.075; group.add(base);
+    const body = new THREE.Mesh(Geoms.unitTorso, woodMat);
+    body.position.y = 0.72; group.add(body);
+    const helm = new THREE.Mesh(Geoms.unitHelm, voidSteelMat);
+    helm.position.y = 1.25; group.add(helm);
+    const bow = new THREE.Mesh(Geoms.bowCurve, woodMat);
+    bow.position.set(0.4, 0.8, 0.2); bow.rotation.y = Math.PI/2;
+    group.add(bow);
+    return group;
+  }
+  if (type === "TownFolk") {
+    const group = new THREE.Group();
+    const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+    base.position.y = 0.075; group.add(base);
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.3, 0.7, 8), woodMat);
+    body.position.y = 0.5; group.add(body);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), wretchFleshMat);
+    head.position.y = 0.95; group.add(head);
+    const pitchfork = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.2, 0.05), boneWhiteMat);
+    pitchfork.position.set(0.35, 0.6, 0.2); group.add(pitchfork);
+    return group;
+  }
+  if (type === "Catapult") {
+    const group = new THREE.Group();
+    const chassis = new THREE.Mesh(Geoms.catapultBase, woodMat);
+    chassis.position.y = 0.4; group.add(chassis);
+    for (let x of [-0.6, 0.6]) {
+      for (let z of [-0.6, 0.6]) {
+        const w = new THREE.Mesh(Geoms.catapultWheel, voidSteelMat);
+        w.position.set(x * 1.1, 0.3, z); w.rotation.z = Math.PI/2;
+        group.add(w);
+      }
+    }
+    const arm = new THREE.Mesh(Geoms.catapultArm, woodMat);
+    arm.position.set(0, 0.9, -0.4); arm.rotation.x = -0.5;
+    group.add(arm);
+    const bucket = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.3, 0.6), voidSteelMat);
+    bucket.position.set(0, 1.6, -0.8); group.add(bucket);
+    return group;
+  }
+  const group = new THREE.Group();
+  const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+  base.position.y = 0.075; base.castShadow = true; group.add(base);
+  if(type === "Wretch") { 
+    for(let i=0; i<6; i++) {
+      const segment = new THREE.Mesh(new THREE.SphereGeometry(0.3 - (i*0.03), 10, 10), wretchCarapaceMat);
+      segment.position.set(0, 0.32 + Math.sin(i * 0.5) * 0.05, -i * 0.22 + 0.3);
+      segment.scale.set(1.1, 0.8, 1);
+      segment.castShadow = true;
+      group.add(segment);
+      if (i < 4) {
+        const spike = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.2, 4), wretchFleshMat);
+        spike.position.set(0, segment.position.y + 0.2, segment.position.z);
+        spike.castShadow = true; group.add(spike);
+      }
+    }
+    for (const side of [-1, 1]) {
+      const pincer = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.04, 8, 8, Math.PI), boneWhiteMat);
+      pincer.position.set(side * 0.18, 0.35, 0.45);
+      pincer.rotation.set(0, side * 0.5, Math.PI / 2);
+      group.add(pincer);
+    }
+    for(let i=0; i<8; i++) {
+      const legGroup = new THREE.Group();
+      const side = i % 2 === 0 ? 1 : -1;
+      const zPos = 0.2 - (Math.floor(i/2) * 0.3);
+      const joint = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), wretchFleshMat);
+      legGroup.add(joint);
+      const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.03, 0.5, 4), wretchCarapaceMat);
+      thigh.position.set(side * 0.2, 0.1, 0);
+      thigh.rotation.z = side * 1.2;
+      thigh.castShadow = true; legGroup.add(thigh);
+      const shin = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.6, 4), wretchFleshMat);
+      shin.position.set(side * 0.45, -0.15, 0);
+      shin.rotation.z = -side * 0.4;
+      shin.castShadow = true; legGroup.add(shin);
+      legGroup.position.set(side * 0.2, 0.2, zPos);
+      group.add(legGroup);
+    }
+    const eyeColors = [0xf59e0b, 0xd97706, 0xef4444];
+    for (let i = 0; i < 3; i++) {
+      for (const side of [-1, 1]) {
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), new THREE.MeshBasicMaterial({color: eyeColors[i]}));
+        eye.position.set(side * (0.12 + i * 0.04), 0.45 + i * 0.03, 0.4);
+        group.add(eye);
+      }
+    }
+  }
+  if(type === "Husk") { 
+    const spine = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8, 6), boneWhiteMat);
+    spine.position.y = 0.65; group.add(spine);
+    for (let i = 0; i < 4; i++) {
+      const rib = new THREE.Mesh(new THREE.TorusGeometry(0.18 - i*0.02, 0.02, 8, 12, Math.PI), boneWhiteMat);
+      rib.position.set(0, 0.95 - i*0.12, 0); rib.rotation.x = Math.PI/2; group.add(rib);
+    }
+    for (const side of [-1, 1]) {
+      const arm = new THREE.Group();
+      const humerus = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.35, 4), boneWhiteMat);
+      humerus.position.y = -0.17; arm.add(humerus);
+      const radius = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.015, 0.35, 4), boneWhiteMat);
+      radius.position.set(0, -0.45, 0.05); radius.rotation.x = -0.5; arm.add(radius);
+      arm.position.set(side * 0.32, 1.0, 0.05); arm.rotation.z = side * -0.4; group.add(arm);
+    }
+    const cloakTop = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.7, 8), huskRobeMat);
+    cloakTop.position.set(0, 0.95, 0); cloakTop.scale.set(1.2, 1, 1); group.add(cloakTop);
+    for(let i=0; i<3; i++) {
+      const tatter = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.5, 3), huskRobeMat);
+      const ang = (i/3)*Math.PI*2; tatter.position.set(Math.cos(ang)*0.25, 0.5, Math.sin(ang)*0.25);
+      tatter.rotation.set(0.4, ang, 0.2); group.add(tatter);
+    }
+    const skull = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), boneWhiteMat);
+    skull.position.set(0, 1.1, 0.08); skull.scale.set(1, 1.1, 1); group.add(skull);
+    const hood = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.5, 8), huskRobeMat);
+    hood.position.set(0, 1.35, -0.05); hood.rotation.x = 0.25; group.add(hood);
+    const scythe = new THREE.Group();
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.6, 8), new THREE.MeshStandardMaterial({color: 0x451a03}));
+    scythe.add(shaft);
+    const blade = new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.04, 8, 12, Math.PI/2), radiantSilverMat);
+    blade.position.set(0.25, 0.7, 0); blade.rotation.z = -Math.PI/4; scythe.add(blade);
+    scythe.position.set(0.55, 0.8, 0.35); scythe.rotation.set(0.4, 0.4, -0.3); group.add(scythe);
+    for(const side of [-1, 1]) {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), new THREE.MeshBasicMaterial({color: 0x06b6d4}));
+      eye.position.set(side * 0.07, 1.15, 0.2); group.add(eye);
+    }
+  }
+  if(type === "Abomination") { 
+    const bodyLow = new THREE.Mesh(new THREE.SphereGeometry(0.55, 12, 12), abomBodyMat);
+    bodyLow.position.y = 0.4; group.add(bodyLow);
+    const bodyHigh = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.0, 8), abomBodyMat);
+    bodyHigh.position.set(0, 0.9, 0); group.add(bodyHigh);
+    const ironBelt = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.06, 6, 16), abomArmorMat);
+    ironBelt.position.y = 0.45; ironBelt.rotation.x = Math.PI/2; group.add(ironBelt);
+    for(let i=0; i<8; i++) {
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.5, 4), abomArmorMat);
+      const h = 0.3 + (i * 0.14); const rot = i * 2.5;
+      spike.position.set(Math.sin(rot)*0.42, h, Math.cos(rot)*0.42);
+      spike.rotation.set(Math.sin(rot)*0.9, rot, Math.cos(rot)*0.9); group.add(spike);
+    }
+    const primaryEye = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 8), new THREE.MeshBasicMaterial({color: 0xef4444}));
+    primaryEye.position.set(0, 1.1, 0.32); group.add(primaryEye);
+  }
+  return group;
+}
+
+function createBoss() {
+  const group = new THREE.Group();
+  const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+  base.position.y = 0.075; base.castShadow = true; group.add(base);
+  const bodyLow = new THREE.Mesh(new THREE.SphereGeometry(0.8, 14, 14), bossBodyMat);
+  bodyLow.position.y = 0.65; bodyLow.scale.set(1, 0.85, 1); group.add(bodyLow);
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.75, 1.1, 10), bossBodyMat);
+  torso.position.y = 1.4; torso.castShadow = true; group.add(torso);
+  for (const side of [-1, 1]) {
+    const paul = new THREE.Mesh(new THREE.SphereGeometry(0.38, 10, 10), bossArmorMat);
+    paul.position.set(side * 0.82, 1.7, 0); paul.scale.set(1.3, 0.9, 1); group.add(paul);
+    const paulSpike = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.6, 5), bossGlowMat);
+    paulSpike.position.set(side * 0.82, 2.15, 0); group.add(paulSpike);
+  }
+  for (const side of [-1, 1]) {
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.1, 0.9, 8), bossArmorMat);
+    arm.position.set(side * 0.95, 1.3, 0.1); arm.rotation.z = side * 0.55; group.add(arm);
+    const fist = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), bossArmorMat);
+    fist.position.set(side * 1.35, 0.95, 0.15); group.add(fist);
+  }
+  for (let i = 0; i < 5; i++) {
+    const ridge = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.45 - i*0.04, 4), bossGlowMat);
+    ridge.position.set(0, 0.5 + i * 0.35, -0.6 + i * 0.04);
+    ridge.rotation.x = 0.35; group.add(ridge);
+  }
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.42, 12, 12), bossBodyMat);
+  head.position.y = 2.35; head.scale.set(1, 1.15, 0.95); head.castShadow = true; group.add(head);
+  for (const side of [-1, 1]) {
+    const horn = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.75, 5), bossArmorMat);
+    horn.position.set(side * 0.28, 2.78, -0.1);
+    horn.rotation.set(-0.2, 0, side * 0.45); group.add(horn);
+  }
+  for (let i = -1; i <= 1; i++) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), bossEyeMat);
+    eye.position.set(i * 0.16, 2.38, 0.36); group.add(eye);
+  }
+  const rune = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.04, 6, 16), bossGlowMat);
+  rune.position.set(0, 1.55, 0.52); rune.rotation.x = 0.25; group.add(rune);
+  const runeCore = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), bossGlowMat);
+  runeCore.position.set(0, 1.55, 0.55); group.add(runeCore);
+  group.scale.set(1.0, 1.0, 1.0);
+  return group;
+}
+
+function createHeadstone() {
+  const group = new THREE.Group();
+  const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+  base.position.y = 0.075; base.castShadow = true; group.add(base);
+  const stoneMat = new THREE.MeshStandardMaterial({color: 0x94a3b8, roughness: 0.8});
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.75, 0.15), stoneMat);
+  slab.position.y = 0.15 + 0.375;
+  slab.rotation.y = (Math.random() - 0.5) * 0.4;
+  slab.castShadow = true; group.add(slab);
+  return group;
+}
+
+function createRubble() {
+  const group = new THREE.Group();
+  const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+  base.position.y = 0.075; base.castShadow = true; group.add(base);
+  const stoneMat = new THREE.MeshStandardMaterial({color: 0x64748b, roughness: 0.8});
+  for(let i=0; i<4; i++){
+    const chunk = new THREE.Mesh(new THREE.BoxGeometry(0.2 + Math.random()*0.2, 0.15, 0.2 + Math.random()*0.2), stoneMat);
+    chunk.position.set((Math.random()-0.5)*0.6, 0.15 + 0.075, (Math.random()-0.5)*0.6);
+    chunk.rotation.set(Math.random(), Math.random(), Math.random());
+    chunk.castShadow = true; group.add(chunk);
+  }
+  return group;
+}
+
+// Reuse these to prevent massive memory leaks in the animation loop
+const smokeGeo = new THREE.SphereGeometry(0.15, 6, 6);
+const smokeMat = new THREE.MeshBasicMaterial({color: 0x64748b, transparent: true, opacity: 0.5});
+
+function spawnSmokePuff(pos) {
+  const puff = new THREE.Mesh(smokeGeo, smokeMat.clone()); // Clone material so we can fade individually
+  puff.position.set(pos.x + (Math.random()-0.5)*0.3, pos.y + 0.4, pos.z + (Math.random()-0.5)*0.3);
+  puff.scale.setScalar(0.5 + Math.random() * 0.5);
+  scene.add(puff);
+  activeFx.push({
+    mesh: puff,
+    tick() {
+      this.mesh.position.y += 0.015;
+      this.mesh.scale.multiplyScalar(1.01);
+      this.mesh.material.opacity -= 0.008;
+      return this.mesh.material.opacity <= 0;
+    }
+  });
+}
+
+function createChurch() {
+  const group = new THREE.Group();
+  const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+  base.position.y = 0.075; base.castShadow = true; group.add(base);
+  const stoneMat = new THREE.MeshStandardMaterial({color: 0xa1a1aa, roughness: 0.7});
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.6), stoneMat);
+  body.position.y = 0.15 + 0.6; body.castShadow = true; group.add(body);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.8, 4), new THREE.MeshStandardMaterial({color: 0x1e293b, roughness: 0.6}));
+  roof.position.y = 0.15 + 1.2 + 0.4; roof.rotation.y = Math.PI/4; roof.castShadow = true; group.add(roof);
+  const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.6, 0.08), brightGoldMat);
+  crossV.position.y = 2.15 + 0.3; group.add(crossV);
+  const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.08, 0.08), brightGoldMat);
+  crossH.position.y = 2.15 + 0.4; group.add(crossH);
+  return group;
+}
+
+function createPrison() {
+  const group = new THREE.Group();
+  const stoneMat = new THREE.MeshStandardMaterial({color: 0x334155, roughness: 0.8});
+  const chassis = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.2, 1.1), woodMat);
+  chassis.position.y = 0.35; chassis.castShadow = true; group.add(chassis);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.8, 0.9), stoneMat);
+  body.position.y = 0.8; body.castShadow = true; group.add(body);
+  for(let i = -0.4; i <= 0.4; i += 0.2) {
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.8), radiantSilverMat);
+    bar.position.set(i, 0.8, 0.46); group.add(bar);
+  }
+  for (let x of [-0.5, 0.5]) {
+    for (let z of [-0.4, 0.4]) {
+      const w = new THREE.Mesh(Geoms.catapultWheel, voidSteelMat);
+      w.position.set(x, 0.25, z); w.rotation.z = Math.PI/2;
+      w.castShadow = true; group.add(w);
+    }
+  }
+  return group;
+}
+
+function createRuinedEnclave() {
+  const group = new THREE.Group();
+  const numBases = Math.floor(Math.random() * 2) + 2; 
+  for (let i = 0; i < numBases; i++) {
+    const baseGroup = new THREE.Group();
+    const hBase = new THREE.Mesh(baseGeo, unifiedBaseMat);
+    hBase.position.y = 0.075; hBase.castShadow = true; baseGroup.add(hBase);
+    const isTower = i === 0 || Math.random() > 0.4;
+    if (!isTower) {
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.65, 0.75), new THREE.MeshStandardMaterial({color: 0x92400e, roughness: 0.7}));
+      body.position.y = 0.15 + 0.325; body.castShadow = true; baseGroup.add(body);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(0.7, 0.5, 4), new THREE.MeshStandardMaterial({color: 0x450a0a, roughness: 0.6}));
+      roof.position.y = 0.15 + 0.65 + 0.25; roof.rotation.y = Math.PI/4; roof.castShadow = true; baseGroup.add(roof);
+    } else {
+      const stone = new THREE.MeshStandardMaterial({color: 0x64748b, roughness: 0.7});
+      const keep = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.38, 1.2, 8), stone);
+      keep.position.y = 0.15 + 0.6; keep.castShadow = true; baseGroup.add(keep);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(0.48, 0.6, 8), new THREE.MeshStandardMaterial({color: 0xb91c1c, roughness: 0.5}));
+      roof.position.y = 0.15 + 1.2 + 0.3; roof.castShadow = true; baseGroup.add(roof);
+    }
+    const ang = (i / numBases) * Math.PI * 2;
+    const rad = 0.9;
+    baseGroup.position.set(Math.cos(ang) * rad, 0, Math.sin(ang) * rad);
+    group.add(baseGroup);
+  }
+  return group;
+}
+
+function createIronCoffre() {
+  const group = new THREE.Group();
+  const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+  base.position.y = 0.075; base.castShadow = true; group.add(base);
+  const box = new THREE.Mesh(
+    new THREE.BoxGeometry(0.7, 0.45, 0.45), 
+    brightGoldMat
+  );
+  box.position.y = 0.15 + 0.225; box.castShadow = true; group.add(box);
+  const lock = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.49), radiantSilverMat);
+  lock.position.set(0, 0.15 + 0.225, 0); group.add(lock);
+  return group;
+}
+
+function place(mesh, q, r) {
+  const p = HexUtils.toWorld(q, r);
+  const tile = tileLookup.get(`${q},${r}`);
+  const y = (tile ? tile.position.y : 0);
+  mesh.position.set(p.x, y, p.z);
+}
+
+function checkDeath() { if (state.hp <= 0) { document.getElementById("death-screen").style.display = "flex"; return true; } return false; }
+
+const isWaterBiome = (biome) => ["DEEP_WATER", "SHALLOW_WATER", "RIVER", "FOREST_HAVEN", "LAKE"].includes(biome);
+const isPassableBiome = (biome) => !["DEEP_WATER", "LAKE", "FOREST_HAVEN"].includes(biome);
+
+// --- MAP CONNECTIVITY VALIDATION & PATH CARVING (BFS) ---
+function validateAndCarveConnectivity(encPos, churchPos, prisonPos) {
+  const startKey = "0,0";
+  const hexNeighbors = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, -1], [-1, 1]];
+  
+  const getNeighbors = (q, r) => {
+    const results = [];
+    for (const [dq, dr] of hexNeighbors) {
+      const nq = q + dq, nr = r + dr;
+      if (HexUtils.isValid(nq, nr)) {
+        results.push({ q: nq, r: nr, key: `${nq},${nr}` });
+      }
+    }
+    return results;
+  };
+
+  const reachable = new Set();
+  const queue = [{ q: 0, r: 0 }];
+  reachable.add(startKey);
+
+  while (queue.length > 0) {
+    const curr = queue.shift();
+    for (const neighbor of getNeighbors(curr.q, curr.r)) {
+      if (!reachable.has(neighbor.key)) {
+        const tile = tileLookup.get(neighbor.key);
+        if (tile && isPassableBiome(tile.userData.biomeKey)) {
+          reachable.add(neighbor.key);
+          queue.push(neighbor);
+        }
+      }
+    }
+  }
+
+  const criticalPositions = [];
+  churchPos.forEach(p => criticalPositions.push({ q: p[0], r: p[1], type: "Church" }));
+  encPos.forEach(p => criticalPositions.push({ q: p[0], r: p[1], type: "Enclave" }));
+  prisonPos.forEach(p => criticalPositions.push({ q: p[0], r: p[1], type: "Prison" }));
+
+  for (const crit of criticalPositions) {
+    const critKey = `${crit.q},${crit.r}`;
+    if (!reachable.has(critKey)) {
+      const path = findShortestPathToReachable(crit.q, crit.r, reachable);
+      if (path) {
+        for (const node of path) {
+          const tile = tileLookup.get(`${node.q},${node.r}`);
+          if (tile && !isPassableBiome(tile.userData.biomeKey)) {
+            tile.userData.biomeKey = "SILT";
+            tile.material = biomeMaterials.SILT;
+            const targetY = 0.1;
+            tile.position.y = targetY;
+            tile.scale.y = (targetY + 5.0) / 1.12;
+            tile.updateMatrix();
+            tile.updateMatrixWorld();
+            reachable.add(`${node.q},${node.r}`);
+          }
+        }
+      }
+    }
+  }
+  return reachable;
+}
+
+function findShortestPathToReachable(sq, sr, reachableSet) {
+  const hexNeighbors = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, -1], [-1, 1]];
+  const queue = [{ q: sq, r: sr, path: [] }];
+  const visited = new Set();
+  visited.add(`${sq},${sr}`);
+
+  while (queue.length > 0) {
+    const curr = queue.shift();
+    const currKey = `${curr.q},${curr.r}`;
+
+    if (reachableSet.has(currKey)) {
+      return curr.path;
+    }
+
+    for (const [dq, dr] of hexNeighbors) {
+      const nq = curr.q + dq, nr = curr.r + dr;
+      const nkey = `${nq},${nr}`;
+      if (HexUtils.isValid(nq, nr) && !visited.has(nkey)) {
+        visited.add(nkey);
+        const tile = tileLookup.get(nkey);
+        if (tile) {
+          queue.push({
+            q: nq,
+            r: nr,
+            path: curr.path.concat([{ q: nq, r: nr }])
+          });
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function disposeMesh(mesh) {
+  mesh.traverse(node => {
+    if (node.isMesh) {
+      const isPooledGeo = Object.values(Geoms).includes(node.geometry) || node.geometry === geo || node.geometry === baseGeo;
+      if (node.geometry && !isPooledGeo) node.geometry.dispose();
+
+      const isPooledMat = Object.values(biomeMaterials).includes(node.material) || 
+                          Object.values(activeColors).includes(node.material) ||
+                          [unifiedBaseMat, foliageMat, woodMat, royalCrimsonMat, keepStoneMat, barnBodyMat, barnRoofMat, cropMat].includes(node.material);
+      if (node.material && !isPooledMat) {
+        if (Array.isArray(node.material)) node.material.forEach(m => m.dispose());
+        else node.material.dispose();
+      }
+    }
+  });
+}
+
+const hero = createBlackKnight();
+
+const state = { 
+  q: 0, r: 0, hp: 100, maxHp: 100, armor: 0, satiation: 10, maxSatiation: 10, 
+  shillings: 0, atk: 7, xp: 0, level: 1, army: 0, rations: 8, ap: 4, maxAp: 4, 
+  inventory: [], turn: 1,
+  spells: { "Blood Burst Scroll": 0, "Flesh Mend Scroll": 0, "Reaping Bolt Scroll": 0 }
+};
+
+const logBox = document.getElementById("log");
+function log(msg) { logBox.innerHTML = `<div class="log-entry">${msg}</div>` + logBox.innerHTML; }
+
+const elArmor = document.getElementById("armor"), elSatiation = document.getElementById("satiation");
+const elXp = document.getElementById("xp"), elAp = document.getElementById("ap"), elMap = document.getElementById("map"), elHp = document.getElementById("hp"), elMhp = document.getElementById("mhp"), elAtk = document.getElementById("atk"), elInv = document.getElementById("inv");
+
+function updateUI(){
+  elXp.textContent = state.xp;
+  elAp.textContent = state.ap; elMap.textContent = state.maxAp;
+  elHp.textContent = Math.max(0, state.hp); elMhp.textContent = state.maxHp;
+  elArmor.textContent = state.armor;
+  elSatiation.textContent = state.satiation;
+  elAtk.textContent = state.atk;
+  elInv.innerHTML = '';
+
+  const displayItems = [];
+  if (state.rations > 0) displayItems.push(`Rations (${state.rations})`);
+  if (state.shillings > 0) displayItems.push(`Shillings (${state.shillings})`);
+  if (state.army > 0) displayItems.push(`Conscripts (${state.army})`);
+
+  state.inventory.forEach(item => { if (!item.includes("Scroll")) displayItems.push(item); });
+
+  const totalSlots = Math.max(8, Math.ceil(displayItems.length / 4) * 4);
+  for (let i = 0; i < totalSlots; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'inv-slot';
+    if (displayItems[i]) {
+      slot.textContent = displayItems[i];
+      slot.style.opacity = '1';
+      if (displayItems[i].startsWith('Rations')) slot.style.color = '#34d399';
+      else if (displayItems[i].startsWith('Shillings')) slot.style.color = '#fbbf24';
+      else if (displayItems[i].startsWith('Conscripts')) slot.style.color = '#cbd5e1';
+    }
+    else slot.style.opacity = '0.35';
+    elInv.appendChild(slot);
+  }
+
+  const bLvl = state.spells["Blood Burst Scroll"];
+  const mLvl = state.spells["Flesh Mend Scroll"];
+  const rLvl = state.spells["Reaping Bolt Scroll"];
+
+  const bBtn = document.getElementById("btn-blood");
+  const mBtn = document.getElementById("btn-mend");
+  const rBtn = document.getElementById("btn-reap");
+
+  bBtn.style.display = bLvl > 0 ? "flex" : "none";
+  if (bLvl > 0) bBtn.querySelector("span").textContent = `Blood Burst (Lvl ${bLvl})`;
+
+  mBtn.style.display = mLvl > 0 ? "flex" : "none";
+  if (mLvl > 0) mBtn.querySelector("span").textContent = `Flesh Mend (Lvl ${mLvl})`;
+
+  rBtn.style.display = rLvl > 0 ? "flex" : "none";
+  if (rLvl > 0) rBtn.querySelector("span").textContent = `Reaping Bolt (Lvl ${rLvl})`;
+
+  document.querySelectorAll(".action-btn").forEach(btn => btn.classList.remove("active"));
+  if (spell === "steel strike") document.getElementById("btn-strike").classList.add("active");
+  if (spell === "blood burst") document.getElementById("btn-blood").classList.add("active");
+  if (spell === "flesh mend") document.getElementById("btn-mend").classList.add("active");
+  if (spell === "reaping bolt") document.getElementById("btn-reap").classList.add("active");
+  const targetingIndicator = document.getElementById("targeting-indicator");
+  if (spell) { targetingIndicator.style.display = "flex"; document.getElementById("targeting-text").textContent = `Priming ${spell}...`; }
+  else { targetingIndicator.style.display = "none"; }
+}
+
+function createDamagePopup(text, position, color="#ff4d4d") {
+  const vector = new THREE.Vector3(position.x, position.y + 2.0, position.z);
+  vector.project(camera);
+  const x = (vector.x * .5 + .5) * window.innerWidth;
+  const y = (vector.y * -.5 + .5) * window.innerHeight;
+  const div = document.createElement('div');
+  div.className = 'dmg-popup';
+  div.style.left = `${x}px`; div.style.top = `${y}px`;
+  div.style.color = color; div.innerText = text;
+  document.body.appendChild(div);
+  setTimeout(() => { div.style.top = `${y - 65}px`; div.style.opacity = '0'; }, 20);
+  setTimeout(() => div.remove(), 850);
+}
+
+const activeFx = [];
+function spawnBloodBurstFx(worldPos) {
+  const ringGeo = new THREE.RingGeometry(0.1, 0.3, 32);
+  ringGeo.rotateX(-Math.PI/2);
+  const ringMat = new THREE.MeshBasicMaterial({color: 0xef4444, side: THREE.DoubleSide, transparent: true, opacity: 0.95});
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.position.set(worldPos.x, worldPos.y + 0.15, worldPos.z);
+  scene.add(ring);
+  activeFx.push({ mesh: ring, type: "expand", speed: 0.22, tick() { this.mesh.scale.x += this.speed; this.mesh.scale.z += this.speed; this.mesh.material.opacity -= 0.035; return this.mesh.material.opacity <= 0; } });
+}
+
+function spawnReapingBoltFx(startPos, endPos) {
+  const points = [new THREE.Vector3(startPos.x, startPos.y + 1.2, startPos.z), new THREE.Vector3(endPos.x, endPos.y + 0.6, endPos.z)];
+  const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+  const lineMat = new THREE.LineBasicMaterial({color: 0xa855f7, linewidth: 4, transparent: true, opacity: 1});
+  const line = new THREE.Line(lineGeo, lineMat);
+  scene.add(line);
+  activeFx.push({ mesh: line, tick() { this.mesh.material.opacity -= 0.065; return this.mesh.material.opacity <= 0; } });
+}
+
+function spawnFleshMendFx(worldPos) {
+  const cylinderGeo = new THREE.CylinderGeometry(0.45, 0.45, 3, 16, 1, true);
+  const cylinderMat = new THREE.MeshBasicMaterial({color: 0x10b981, transparent: true, opacity: 0.8, side: THREE.DoubleSide});
+  const cylinder = new THREE.Mesh(cylinderGeo, cylinderMat);
+  cylinder.position.set(worldPos.x, worldPos.y + 1.5, worldPos.z);
+  scene.add(cylinder);
+  activeFx.push({ mesh: cylinder, tick() { this.mesh.scale.x -= 0.015; this.mesh.scale.z -= 0.015; this.mesh.position.y += 0.06; this.mesh.material.opacity -= 0.025; return this.mesh.material.opacity <= 0; } });
+}
+
+function gainScars(x){
+  state.xp += x;
+  if(state.xp >= state.level * 30){
+    state.level++; state.maxHp += 8; state.hp = state.maxHp; state.atk += 3; state.army += 1;
+    log(`<span style="color:#f87171;">Infamy Grows: Your power increases and Action Points are replenished.</span>`);
+    state.ap = state.maxAp; SoundSystem.playLevelUp();
+  }
+}
+
+function tryLoot(chance) {
+  if (Math.random() > (chance * 2)) return; // Double generic drop rates
+  const items = ["Blood Burst Scroll", "Flesh Mend Scroll", "Reaping Bolt Scroll", "Sun Rune Armor", "Rations", "Rations", "Rations"]; // Rations added multiple times for higher drop chance
+  const item = items[Math.floor(Math.random() * items.length)];
+  if (item === "Sun Rune Armor") {
+    state.armor += 5;
+    log(`<span style="color:#fbbf24;">Looted: <b>${item}</b>! Armor increased by 5.</span>`);
+  } else if (item.includes("Scroll")) {
+    if (state.spells[item] < 3) {
+      state.spells[item]++;
+      log(`<span style="color:#c084fc;">Looted: <b>${item}</b>. Knowledge increased to <b>Level ${state.spells[item]}</b>!</span>`);
+    } else {
+      state.shillings += 15;
+      log(`<span style="color:#fbbf24;">Looted: Duplicate ${item}. Converted to 15 shillings.</span>`);
+    }
+  } else if (item === "Rations") {
+    state.rations++;
+    log(`<span style="color:#34d399;">Looted: <b>${item}</b>.</span>`);
+  } else {
+    state.inventory.push(item); log(`<span style="color:#c084fc;">Looted: ${item}.</span>`);
+  }
+  updateUI();
+}
+
+const SPELL_RANGE = { "steel strike": 1, "blood burst": 2, "reaping bolt": 3 };
+
+function onEnemySlain(enemy, isMelee) {
+  enemy.mesh.visible = false;
+  worldContainer.remove(enemy.mesh);
+  disposeMesh(enemy.mesh);
+  const grave = createHeadstone(); worldContainer.add(grave);
+  place(grave, enemy.q, enemy.r);
+  if (enemy._light) worldContainer.remove(enemy._light);
+  const g = enemy.isBoss ? 120 : (isMelee ? 35 : 18);
+  const a = enemy.isBoss ? 5 : (isMelee ? 1 : 0);
+  const s = enemy.isBoss ? 100 : (isMelee ? 25 : 20);
+  state.shillings += g;
+  if (a) state.army += a;
+  gainScars(s);
+  if (!enemy.isBoss) {
+    if (isMelee) {
+      log(`${enemy.type} slain. Looted +${g} shillings, +${a} conscript, & +${s} scars.`);
+    } else {
+      log(`${enemy.type} vanquished. Claimed +${g} shillings & +${s} scars.`);
+    }
+    tryLoot(0.3);
+  }
+  if (enemy.isBoss) {
+    log(`<span style="color:#fbbf24;">The Undying Tyrant has been slain! Victory is yours. The darkness recedes.</span>`);
+    dropBossChest(enemy.q, enemy.r);
+  }
+  checkBossSpawn();
+}
+
+function spawnBoss() {
+  let bq = 0, br = -6;
+  
+  // Verify boss doesn't spawn in water; find nearest valid land tile if necessary
+  let targetTile = tileLookup.get(`${bq},${br}`);
+  if (!targetTile || isWaterBiome(targetTile.userData.biomeKey)) {
+    const safeTile = tiles.find(t => !isWaterBiome(t.userData.biomeKey) && HexUtils.dist(0, 0, t.userData.q, t.userData.r) > 5);
+    if (safeTile) { bq = safeTile.userData.q; br = safeTile.userData.r; }
+  }
+
+  const b = {
+    type: "The Undying Tyrant", q: bq, r: br,
+    hp: 120, maxHp: 120, atk: 14, ap: 3, isBoss: true,
+    mesh: createBoss(), maxAp: 3, aggroRange: 12
+  };
+  place(b.mesh, bq, br);
+  enemies.push(b);
+  boss = b;
+  worldContainer.add(b.mesh);
+  const bossLight = new THREE.PointLight(0xd946ef, 6, 18);
+  const bossWorldPos = HexUtils.toWorld(bq, br);
+  bossLight.position.set(bossWorldPos.x, 3, bossWorldPos.z);
+  worldContainer.add(bossLight);
+  b._light = bossLight;
+  log(`<span style="color:#d946ef;">The Undying Tyrant tears through the veil! An ancient horror descends upon the battlefield!</span>`);
+  SoundSystem.playLevelUp();
+  triggerCameraShake(1.2);
+}
+
+function dropBossChest(q, r) {
+  const group = new THREE.Group();
+  const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+  base.position.y = 0.075; base.castShadow = true; group.add(base);
+  const box = new THREE.Mesh(
+    new THREE.BoxGeometry(0.8, 0.52, 0.52),
+    brightGoldMat
+  );
+  box.position.y = 0.15 + 0.26; box.castShadow = true; group.add(box);
+  for (const xOff of [-0.28, 0, 0.28]) {
+    const band = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.55, 0.54), radiantSilverMat);
+    band.position.set(xOff, 0.15 + 0.26, 0); group.add(band);
+  }
+  const lock = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.24, 0.55), radiantSilverMat);
+  lock.position.set(0, 0.15 + 0.26, 0); group.add(lock);
+  const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.1, 0), bossGlowMat);
+  gem.position.set(0, 0.15 + 0.6, 0); group.add(gem);
+  const chestLight = new THREE.PointLight(0xd946ef, 3, 6);
+  chestLight.position.set(0, 1, 0); group.add(chestLight);
+  worldContainer.add(group);
+  place(group, q, r);
+  const t = { q, r, mesh: group, taken: false, isBossChest: true };
+  treasures.push(t);
+  log(`<span style="color:#d946ef;">The Tyrant's Reliquary crashes to the ground — claim it!</span>`);
+}
+
+let processingTurn = false;
+
+let spell = null;
+function castFleshMend() {
+  if (processingTurn) return;
+  if (state.ap < 2) { log("Not enough AP! Flesh Mend requires <span class='highlight'>2 AP</span>."); SoundSystem.playBuzzer(); return; }
+  const lvl = state.spells["Flesh Mend Scroll"] || 1;
+  const heal = 12 * lvl;
+  state.ap -= 2; state.hp = Math.min(state.maxHp, state.hp + heal); 
+  log(`<span style='color:#34d399;'>Holy incantations (Lvl ${lvl}) mend wounds (+${heal} Health).</span>`); 
+  spawnFleshMendFx(hero.position); createDamagePopup(`+${heal}`, hero.position, "#34d399");
+  SoundSystem.playHeal(); updateUI();
+}
+
+async function processTurnAdvance() {
+  if (state.hp <= 0 || processingTurn) return;
+  processingTurn = true;
+
+  state.turn++;
+  state.ap = state.maxAp;
+  log(`<b style="color:#fff; font-size:13px; margin-top:8px; display:block;">Turn ${state.turn}</b>`);
+  log("<div style='color:#fb923c; margin-top:6px;'>[ Horrors re-orient themselves ]</div>");
+
+  state.satiation--;
+  if (state.rations > 0 && state.satiation < state.maxSatiation) {
+    state.rations--;
+    state.satiation++;
+    log("<span style='color:#34d399;'>A ration was consumed. Satiation maintained.</span>");
+  }
+
+  if (state.satiation <= 0) {
+    state.satiation = 0;
+    state.hp -= 2;
+    log("<span style='color:#ef4444;'>Satiation depleted! You lose 2 Health.</span>");
+  } else if (state.rations <= 0) {
+    log("<span style='color:#f87171;'>No rations! Satiation is dropping... (Counter: " + state.satiation + ")</span>");
+  }
+  
+  // --- TURN-BASED SPAWNING (Source-based) ---
+
+  // 1. Knights from Churches (30% chance per church)
+  for (const church of churches) {
+    if (church.hp <= 0) continue;
+    if (getEnemyCount('common') < SPAWN_LIMITS.common && Math.random() < 0.3) {
+      const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]].sort(() => Math.random() - 0.5);
+      for (const d of dirs) {
+        const nq = church.q + d[0], nr = church.r + d[1];
+        const occupied = enemies.some(e => e.hp > 0 && e.q === nq && e.r === nr) || (state.q === nq && state.r === nr);
+        const buildingOccupied = churches.some(c => c.q === nq && c.r === nr) || enclaves.some(e => e.q === nq && e.r === nr) || prisons.some(p => p.q === nq && p.r === nr);
+        const tile = tileLookup.get(`${nq},${nr}`);
+        if (!occupied && !buildingOccupied && tile && !isWaterBiome(tile.userData.biomeKey) && HexUtils.isValid(nq, nr)) {
+          sampleSpawn("Knight", nq, nr);
+          log("<span style='color:#fca5a5;'>A zealous Knight emerges from the Church!</span>");
+          break;
+        }
+      }
+    }
+  }
+
+  // 2. Guards from Prisons (30% chance per prison)
+  for (const prison of prisons) {
+    if (prison.hp <= 0) continue;
+    if (getEnemyCount('common') < SPAWN_LIMITS.common && Math.random() < 0.3) {
+      const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]].sort(() => Math.random() - 0.5);
+      for (const d of dirs) {
+        const nq = prison.q + d[0], nr = prison.r + d[1];
+        const occupied = enemies.some(e => e.hp > 0 && e.q === nq && e.r === nr) || (state.q === nq && state.r === nr);
+        const buildingOccupied = churches.some(c => c.q === nq && c.r === nr) || enclaves.some(e => e.q === nq && e.r === nr) || prisons.some(p => p.q === nq && p.r === nr);
+        const tile = tileLookup.get(`${nq},${nr}`);
+        if (!occupied && !buildingOccupied && tile && !isWaterBiome(tile.userData.biomeKey) && HexUtils.isValid(nq, nr)) {
+          sampleSpawn("Guard", nq, nr);
+          log("<span style='color:#cbd5e1;'>A Guard is dispatched from the prison cart!</span>");
+          break;
+        }
+      }
+    }
+  }
+
+  // 2. Monsters from Forests (40% chance for a monster to crawl out)
+  // Renumbered to 3.
+  // Renumbered to 3.
+  if (getEnemyCount('common') + getEnemyCount('elite') < SPAWN_LIMITS.common + SPAWN_LIMITS.elite) {
+    if (Math.random() < 0.4) {
+      const crags = tiles.filter(t => t.userData.biomeKey === "CRAG").sort(() => Math.random() - 0.5);
+      for (const forest of crags) {
+        const fq = forest.userData.q, fr = forest.userData.r;
+        const occupied = enemies.some(e => e.hp > 0 && e.q === fq && e.r === fr) || (state.q === fq && state.r === fr);
+        if (!occupied) {
+          let type = "Wretch";
+          const roll = Math.random();
+          if (roll > 0.9) type = "Catapult";
+          else if (roll > 0.75) type = "Abomination";
+          else if (roll > 0.55) type = "Ranger";
+          else if (roll > 0.3) type = "Husk";
+
+          sampleSpawn(type, fq, fr);
+          log(`<span style='color:#10b981;'>A ${type} crawls out from the dark forest...</span>`);
+          break;
+        }
+      }
+    }
+  }
+
+  // Initialize Enemy AP for the new phase
+  enemies.forEach(e => { if (e.hp > 0) e.ap = e.maxAp || 2; });
+  prisons.forEach(p => { p.ap = 1; });
+  allies.forEach(a => { if (a.hp > 0) a.ap = a.maxAp || 2; });
+
+  // --- ALLY AI PHASE ---
+  for (const ally of allies) {
+    if (ally.hp <= 0 || ally.ap <= 0) continue;
+
+    const potentialTargets = enemies.filter(e => e.hp > 0 && HexUtils.dist(ally.q, ally.r, e.q, e.r) <= ally.leashRange);
+    if (potentialTargets.length === 0) {
+      ally.ap = 0; // No targets in range, do nothing.
+      continue;
+    }
+
+    potentialTargets.sort((a, b) => HexUtils.dist(ally.q, ally.r, a.q, a.r) - HexUtils.dist(ally.q, ally.r, b.q, b.r));
+    const target = potentialTargets[0];
+    const distToTarget = HexUtils.dist(ally.q, ally.r, target.q, target.r);
+
+    if (distToTarget <= ally.range) { // Attack
+      target.hp -= ally.atk;
+      log(`An ally ${ally.type} attacks ${target.type} for <span style="color:#60a5fa;">${ally.atk} damage</span>.`);
+      createDamagePopup(`-${ally.atk}`, target.mesh.position, "#60a5fa");
+      SoundSystem.playSlash();
+      ally.ap--;
+      if (target.hp <= 0) {
+        target.mesh.visible = false;
+        worldContainer.remove(target.mesh);
+        disposeMesh(target.mesh);
+        const grave = createHeadstone(); worldContainer.add(grave);
+        place(grave, target.q, target.r);
+        log(`${target.type} was vanquished by an ally!`);
+      }
+    } else { // Move towards target
+      const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]];
+      dirs.sort((a,b) => HexUtils.dist(ally.q+a[0], ally.r+a[1], target.q, target.r) - HexUtils.dist(ally.q+b[0], ally.r+b[1], target.q, target.r));
+      
+      for (const d of dirs) {
+        const nq = ally.q + d[0], nr = ally.r + d[1];
+        const occupied = enemies.some(e => e.hp > 0 && e.q === nq && e.r === nr) ||
+                         allies.some(a => a.hp > 0 && a.q === nq && a.r === nr) ||
+                         (state.q === nq && state.r === nr);
+        const tile = tileLookup.get(`${nq},${nr}`);
+        if (!occupied && tile && isPassableBiome(tile.userData.biomeKey) && HexUtils.isValid(nq, nr)) {
+          const m = ally.mesh; m.userData.startPos = m.position.clone();
+          const pT = HexUtils.toWorld(nq, nr); m.userData.targetPos = new THREE.Vector3(pT.x, tile.position.y, pT.z);
+          m.userData.moveT = 0; m.userData.isMoving = true;
+          ally.q = nq; ally.r = nr; ally.ap--;
+          break;
+        }
+      }
+    }
+  }
+
+  // Wait for ally movement animations to finish before enemies act
+  while (allies.some(a => a.hp > 0 && a.mesh && a.mesh.userData.isMoving)) await new Promise(res => requestAnimationFrame(res));
+
+  let acting = true;
+  while (acting && state.hp > 0) {
+    acting = false;
+    let movedAny = false;
+
+    for (const enemy of enemies) {
+      if (enemy.hp <= 0 || enemy.ap <= 0 || state.hp <= 0) continue;
+
+      // Priest Special AI: Heal wounded allies
+      if (enemy.type === "Priest" && enemy.ap > 0) {
+        const woundedAlly = enemies.find(e => e.hp > 0 && e.hp < e.maxHp && HexUtils.dist(enemy.q, enemy.r, e.q, e.r) <= 1);
+        if (woundedAlly) {
+          woundedAlly.hp = Math.min(woundedAlly.maxHp, woundedAlly.hp + 10);
+          spawnFleshMendFx(woundedAlly.mesh.position);
+          createDamagePopup("+10", woundedAlly.mesh.position, "#34d399");
+          log(`The Priest mends the wounds of ${woundedAlly.type}.`);
+          enemy.ap--; acting = true;
+          continue;
+        }
+      }
+
+      // --- DYNAMIC FACTION TARGETING ---
+      const potentialTargets = [
+        {...state, type: "Player", mesh: hero, isPlayer: true}, // Always target player
+        ...allies.filter(a => a.hp > 0), // Target active allies
+        ...enemies.filter(e => e.hp > 0 && e.faction !== enemy.faction && e.faction !== 'neutral') // Target opposing faction enemies
+      ];
+
+      let target = null;
+      let closestDist = Infinity;
+
+      for (const p of potentialTargets) {
+        const d = HexUtils.dist(enemy.q, enemy.r, p.q, p.r);
+        if (d < closestDist) {
+          closestDist = d;
+          target = p;
+        }
+      }
+      if (!target) { enemy.ap = 0; continue; } // No valid targets found
+      const distToTarget = HexUtils.dist(enemy.q, enemy.r, target.q, target.r);
+
+      const isAggro = distToTarget <= (enemy.aggroRange || 6);
+      const attackRange = enemy.range || 1;
+
+      if (distToTarget <= attackRange && isAggro && enemy.atk > 0) {
+        const armor = target.isPlayer ? state.armor : 0;
+        const dmg = Math.max(1, enemy.atk - armor);
+        if (target.isPlayer) {
+          state.hp -= dmg; // Directly modify the global player state
+        } else {
+          target.hp -= dmg; // Modify the HP of the targeted NPC (ally or other enemy)
+        }
+
+        const targetName = target.isPlayer ? 'Player' : target.type;
+        log(`The ${enemy.type} attacks ${targetName} for <span style="color:#f87171;">${dmg} damage</span>.`);
+        if (enemy.type === "Ranger") spawnReapingBoltFx(enemy.mesh.position, target.mesh.position);
+        
+        triggerCameraShake(0.5); createDamagePopup(`-${dmg}`, target.mesh.position, "#f87171");
+        SoundSystem.playDamage(); enemy.ap -= 1; acting = true;
+        updateUI();
+        await new Promise(r => setTimeout(r, 200)); // Brief pause between individual attacks
+
+        if (target.isPlayer && checkDeath()) break;
+        if (!target.isPlayer && target.hp <= 0) { 
+          target.mesh.visible = false; 
+          worldContainer.remove(target.mesh);
+          disposeMesh(target.mesh);
+          const grave = createHeadstone(); worldContainer.add(grave);
+          place(grave, target.q, target.r);
+          const message = allies.includes(target) ? `An ally ${target.type} has fallen!` : `${target.type} was slain by ${enemy.type}!`;
+          log(message);
+        }
+      } else {
+        const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]];
+        if (isAggro) dirs.sort((a,b) => HexUtils.dist(enemy.q+a[0], enemy.r+a[1], target.q, target.r) - HexUtils.dist(enemy.q+b[0], enemy.r+b[1], target.q, target.r));
+        else { for (let i = dirs.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [dirs[i], dirs[j]] = [dirs[j], dirs[i]]; } }
+
+        let pathFound = false;
+        for (let i = 0; i < dirs.length; i++) {
+          const nq = enemy.q + dirs[i][0], nr = enemy.r + dirs[i][1];
+          const spotOccupied = enemies.some(other => other.hp > 0 && other.q === nq && other.r === nr) ||
+                               allies.some(a => a.hp > 0 && a.q === nq && a.r === nr) ||
+                               (state.q === nq && state.r === nr) ||
+                               churches.some(c => c.hp > 0 && c.q === nq && c.r === nr);
+          if (!HexUtils.isValid(nq, nr) || spotOccupied) continue;
+          const targetTile = tileLookup.get(`${nq},${nr}`);
+          if (targetTile && !isWaterBiome(targetTile.userData.biomeKey)) {
+            const m = enemy.mesh; m.userData.startPos = m.position.clone();
+            const pT = HexUtils.toWorld(nq, nr); m.userData.targetPos = new THREE.Vector3(pT.x, targetTile.position.y, pT.z);
+            m.userData.moveT = 0; m.userData.isMoving = true;
+            enemy.q = nq; enemy.r = nr; enemy.ap -= 1; pathFound = true; movedAny = true; acting = true; break;
+          }
+        }
+        if (!pathFound) enemy.ap = 0;
+      }
+    }
+
+    // Prison Cart Movement
+    for (const cart of prisons.filter(p => p.hp > 0)) {
+      if (cart.ap <= 0) continue;
+      const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]].sort(() => Math.random() - 0.5);
+      for (const d of dirs) {
+        const nq = cart.q + d[0], nr = cart.r + d[1];
+        const occupied = enemies.some(e => e.hp > 0 && e.q === nq && e.r === nr) || (state.q === nq && state.r === nr) || 
+                         prisons.some(p => p !== cart && p.q === nq && p.r === nr) ||
+                         churches.some(c => c.q === nq && c.r === nr) || enclaves.some(e => e.q === nq && e.r === nr);
+        const tile = tileLookup.get(`${nq},${nr}`);
+        if (!occupied && tile && isPassableBiome(tile.userData.biomeKey) && !isWaterBiome(tile.userData.biomeKey) && HexUtils.isValid(nq, nr)) {
+          const m = cart.mesh; m.userData.startPos = m.position.clone();
+          const pT = HexUtils.toWorld(nq, nr); m.userData.targetPos = new THREE.Vector3(pT.x, tile.position.y, pT.z);
+          m.userData.moveT = 0; m.userData.isMoving = true;
+          cart.q = nq; cart.r = nr; cart.ap = 0; movedAny = true; acting = true;
+          break;
+        }
+      }
+    }
+
+    if (movedAny) {
+      // Wait for all units to finish their parallel movement animations
+      while (enemies.some(e => e.hp > 0 && e.mesh && e.mesh.userData.isMoving) || prisons.some(p => p.hp > 0 && p.mesh && p.mesh.userData.isMoving) || allies.some(a => a.hp > 0 && a.mesh && a.mesh.userData.isMoving)) await new Promise(res => requestAnimationFrame(res));
+      await new Promise(r => setTimeout(r, 100));
+    }
+  }
+  checkDeath();
+  updateUI();
+  processingTurn = false;
+}
+function selectSpell(spellName) {
+  if (processingTurn || state.hp <= 0) return;
+
+  const spellMap = { "blood burst": "Blood Burst Scroll", "flesh mend": "Flesh Mend Scroll", "reaping bolt": "Reaping Bolt Scroll" };
+  
+  if (spellName !== "steel strike" && state.spells[spellMap[spellName]] <= 0) {
+    return;
+  }
+
+  if(spellName === "flesh mend") {
+    castFleshMend();
+  }
+  else {
+    let cost = 1;
+    if (spellName === "reaping bolt") cost = 2;
+
+    if (state.ap < cost) { log(`Not enough AP! ${spellName} requires <span class="highlight">${cost} AP</span>.`); SoundSystem.playBuzzer(); return; }
+    spell = spellName; log(`<span style='color:#c084fc;'>Priming ${spellName}... (Select tactical target tile)</span>`);
+    SoundSystem.playSpellCast(); updateUI();
+  }
+}
+
+window.addEventListener("keydown", e => {
+  if (!gameStarted) return;
+  if(e.code === "Space") e.preventDefault();
+  if(state.hp <= 0) return;
+  if(e.key === "1") selectSpell("steel strike");
+  if(e.key === "2") selectSpell("blood burst");
+  if(e.key === "3") selectSpell("flesh mend");
+  if(e.key === "4") selectSpell("reaping bolt");
+  if(e.key === "e" || e.key === "E") window.location.href = "openworld.html";
+  if(e.code === "Space") processTurnAdvance();
+});
+
+document.getElementById("btn-strike").addEventListener("click", () => selectSpell("steel strike"));
+document.getElementById("btn-blood").addEventListener("click", () => selectSpell("blood burst"));
+document.getElementById("btn-mend").addEventListener("click", () => selectSpell("flesh mend"));
+document.getElementById("btn-reap").addEventListener("click", () => selectSpell("reaping bolt"));
+document.getElementById("btn-explore-area").addEventListener("click", () => {
+  window.location.href = "openworld.html";
+});
+document.getElementById("btn-end-turn").addEventListener("click", () => { if (state.hp > 0) processTurnAdvance(); });
+
+document.getElementById("chapter-select").addEventListener("change", (e) => {
+  const chapter = e.target.value;
+  
+  const palettes = {
+    "1": { 
+      msg: "Chronicle I: Iron & Gloom", sun: 2.5, amb: 0.6,
+      colors: { grass: {r:22,g:163,b:74}, river: {r:37,g:99,b:235}, lake: {r:37,g:99,b:235}, deepWater: {r:30,g:58,b:95}, shallowWater: {r:56,g:189,b:248}, silt: {r:81,g:70,b:62}, crag: {r:21,g:128,b:61}, uiBg: {r:9,g:13,b:22}, uiAccent: {r:220,g:38,b:38} }
+    },
+    "2": { 
+      msg: "Chronicle II: Obsidian Tides", sun: 1.2, amb: 0.3,
+      colors: { grass: {r:15,g:23,b:42}, river: {r:14,g:165,b:233}, lake: {r:14,g:165,b:233}, deepWater: {r:8,g:47,b:73}, shallowWater: {r:12,g:74,b:110}, silt: {r:2,g:6,b:23}, crag: {r:30,g:41,b:59}, uiBg: {r:2,g:6,b:12}, uiAccent: {r:37,g:99,b:235} }
+    },
+    "3": { 
+      msg: "Chronicle III: The Gilded Blight", sun: 3.5, amb: 0.8,
+      colors: { grass: {r:120,g:113,b:108}, river: {r:234,g:179,b:8}, lake: {r:234,g:179,b:8}, deepWater: {r:113,g:63,b:18}, shallowWater: {r:202,g:138,b:4}, silt: {r:214,g:158,b:46}, crag: {r:251,g:191,b:36}, uiBg: {r:28,g:25,b:23}, uiAccent: {r:234,g:179,b:8} }
+    },
+    "4": { 
+      msg: "Chronicle IV: Echoes of Aether", sun: 2.0, amb: 0.5,
+      colors: { grass: {r:168,g:85,b:247}, river: {r:192,g:38,b:211}, lake: {r:192,g:38,b:211}, deepWater: {r:15,g:23,b:42}, shallowWater: {r:67,g:56,b:202}, silt: {r:30,g:58,b:138}, crag: {r:6,g:182,b:212}, uiBg: {r:10,g:10,b:30}, uiAccent: {r:168,g:85,b:247} }
+    },
+    "5": { 
+      msg: "Chronicle V: The Crimson Citadel", sun: 1.5, amb: 0.2,
+      colors: { grass: {r:69,g:10,b:10}, river: {r:220,g:38,b:38}, lake: {r:220,g:38,b:38}, deepWater: {r:0,g:0,b:0}, shallowWater: {r:127,g:29,b:29}, silt: {r:24,g:24,b:27}, crag: {r:153,g:27,b:27}, uiBg: {r:15,g:0,b:0}, uiAccent: {r:220,g:38,b:38} }
+    },
+    "6": { 
+      msg: "Chronicle VI: Final Ember", sun: 4.0, amb: 0.1,
+      colors: { grass: {r:24,g:24,b:27}, river: {r:249,g:115,b:22}, lake: {r:249,g:115,b:22}, deepWater: {r:30,g:41,b:59}, shallowWater: {r:124,g:45,b:18}, silt: {r:9,g:9,b:11}, crag: {r:69,g:10,b:10}, uiBg: {r:5,g:5,b:5}, uiAccent: {r:249,g:115,b:22} }
+    }
+  };
+
+  const p = palettes[chapter];
+  log(`<span style="color:#fff;">${p.msg} — The reality shifts.</span>`);
+  Object.assign(activeColors, p.colors);
+  Object.keys(activeColors).forEach(key => applyDynamicColors(key));
+  sunkey.intensity = p.sun;
+  ambient.intensity = p.amb;
+
+  generateWorld(chapter);
+  updateUI();
+});
+
+const ray = new THREE.Raycaster(); const mouse = new THREE.Vector2();
+
+window.addEventListener("pointerdown", e => {
+  if (e.target.closest('#ui-stack')) return;
+  
+  if (e.button === 1 || e.button === 2) {
+    isRotating = true;
+    prevMouseX = e.clientX;
+    prevMouseY = e.clientY;
+    return;
+  }
+
+  if(!gameStarted || processingTurn || state.hp <= 0 || hero.userData.isMoving || hero.userData.isSpawning) return;
+  if (e.button !== 0) return;
+
+  mouse.x = (e.clientX / innerWidth) * 2 - 1; mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+  ray.setFromCamera(mouse, camera);
+  const hit = ray.intersectObjects(tiles)[0];
+  if(!hit) return;
+  const q = hit.object.userData.q; const r = hit.object.userData.r;
+  const dist = HexUtils.dist(state.q, state.r, q, r);
+  if(spell){
+    let cost = 1;
+    if (spell === "reaping bolt") cost = 2;
+
+    if (dist > SPELL_RANGE[spell]) { log(`Target out of reach for ${spell}.`); spell = null; updateUI(); return; }
+    if (state.ap < cost) { log("Magic disrupted! Action Points depleted."); SoundSystem.playBuzzer(); spell = null; updateUI(); return; }
+
+    state.ap -= cost; triggerCameraShake(0.35);
+    if(spell === "blood burst") spawnBloodBurstFx(hit.point);
+    if(spell === "reaping bolt") spawnReapingBoltFx(hero.position, hit.point);
+    if(spell === "steel strike") SoundSystem.playSlash();
+
+    enemies.forEach(enemy => {
+      if(enemy.hp > 0 && HexUtils.dist(q, r, enemy.q, enemy.r) <= (spell === "blood burst" ? 1 : 0)){
+        const spellMap = { "blood burst": "Blood Burst Scroll", "reaping bolt": "Reaping Bolt Scroll" };
+        const lvl = state.spells[spellMap[spell]] || 1;
+        let baseDmg = (spell === "blood burst") ? 15 : (spell === "reaping bolt" ? 22 : state.atk + Math.floor(state.army/4));
+        
+        let dmg = (spell === "steel strike") ? baseDmg : baseDmg * lvl;
+
+        enemy.hp -= dmg;
+        log(`${spell} (Lvl ${lvl}) impacts ${enemy.type} for ${dmg} damage.`);
+        createDamagePopup(`-${dmg}`, enemy.mesh.position, spell === "blood burst" ? "#f87171" : (spell === "steel strike" ? "#fb923c" : "#c084fc"));
+        SoundSystem.playDamage();
+        if(enemy.hp <= 0) onEnemySlain(enemy, spell === "steel strike");
+      }
+    });
+
+    if (spell === "blood burst") {
+      const lvl = state.spells["Blood Burst Scroll"] || 1;
+      const dmg = 15 * lvl;
+      prisons.forEach(prison => {
+        if (prison.hp > 0 && HexUtils.dist(q, r, prison.q, prison.r) <= 1) {
+          prison.hp -= dmg;
+          log(`blood burst (Lvl ${lvl}) impacts the prison cart for ${dmg} damage.`);
+          createDamagePopup(`-${dmg}`, prison.mesh.position, "#f87171");
+          SoundSystem.playDamage();
+          if (prison.hp <= 0) {
+            prison.mesh.visible = false;
+            const rubble = createRubble(); worldContainer.add(rubble);
+            place(rubble, prison.q, prison.r);
+            rubbles.push(rubble);
+            log("<span style='color:#fbbf24;'>The prison cart has been smashed open!</span>");
+            if (Math.random() < 0.4) {
+              const spawnCount = Math.random() < 0.5 ? 1 : 2;
+              log(`<span style='color:#fca5a5;'>${spawnCount} desperate prisoner(s) emerge from the wreckage!</span>`);
+              for (let i = 0; i < spawnCount; i++) {
+                const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]].sort(() => Math.random() - 0.5);
+                for (const d of dirs) {
+                  const nq = prison.q + d[0], nr = prison.r + d[1];
+                  const occupied = enemies.some(e => e.hp > 0 && e.q === nq && e.r === nr);
+                  if (!occupied) { spawnAlly("Freed Prisoner", nq, nr, prison.q, prison.r); break; }
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    spell = null; updateUI(); return;
+  }
+  let enemyOnHex = enemies.find(e => e.hp > 0 && e.q === q && e.r === r);
+  if(enemyOnHex) {
+    if(dist > 1) { log("Target anomaly is out of blade reach."); return; }
+    if(state.ap < 1) { log("Not enough AP!"); SoundSystem.playBuzzer(); return; }
+    state.ap -= 1; const damage = state.atk + Math.floor(state.army/4); enemyOnHex.hp -= damage;
+    log(`Greatsword slashes ${enemyOnHex.type} for <span style="color:#fb923c;">${damage} damage</span>!`);
+    triggerCameraShake(0.25); createDamagePopup(`-${damage}`, enemyOnHex.mesh.position, "#fb923c");
+    SoundSystem.playSlash();
+    if(enemyOnHex.hp <= 0) onEnemySlain(enemyOnHex, true);
+    checkDeath();
+    updateUI(); return;
+  }
+  
+  let churchOnHex = churches.find(c => c.hp > 0 && c.q === q && c.r === r);
+  if(churchOnHex) {
+    if(dist > 1) { log("The Church is beyond your reach."); return; }
+    if(state.ap < 1) { log("Not enough AP!"); SoundSystem.playBuzzer(); return; }
+    state.ap -= 1; const damage = state.atk + Math.floor(state.army/4); churchOnHex.hp -= damage;
+    log(`You strike the Church for <span style="color:#fb923c;">${damage} damage</span>!`);
+    triggerCameraShake(0.2); createDamagePopup(`-${damage}`, churchOnHex.mesh.position, "#ffffff");
+    SoundSystem.playSlash();
+    if(churchOnHex.hp <= 0){
+      churchOnHex.mesh.visible = false;
+      const rubble = createRubble(); worldContainer.add(rubble);
+      place(rubble, churchOnHex.q, churchOnHex.r);
+      rubbles.push(rubble);
+      log("<span style='color:#fbbf24;'>The Church has been razed! A vengeful Priest emerges from the debris! (+50 Scars)</span>");
+      sampleSpawn("Priest", q, r);
+      gainScars(50);
+    }
+    updateUI(); return;
+  }
+
+  let allyOnHex = allies.find(a => a.hp > 0 && a.q === q && a.r === r);
+  if(allyOnHex) {
+    log(`This is a friendly ${allyOnHex.type}.`);
+    return; // Prevent attacking allies
+  }
+
+  let prisonOnHex = prisons.find(p => p.hp > 0 && p.q === q && p.r === r);
+  if(prisonOnHex) {
+    if(dist > 1) { log("The prison cart is beyond your reach."); return; }
+    if(state.ap < 1) { log("Not enough AP!"); SoundSystem.playBuzzer(); return; }
+    state.ap -= 1; const damage = state.atk + Math.floor(state.army/4); prisonOnHex.hp -= damage;
+    log(`You strike the prison cart for <span style="color:#fb923c;">${damage} damage</span>!`);
+    triggerCameraShake(0.2); createDamagePopup(`-${damage}`, prisonOnHex.mesh.position, "#ffffff");
+    SoundSystem.playSlash();
+    if(prisonOnHex.hp <= 0){
+      prisonOnHex.mesh.visible = false;
+      const rubble = createRubble(); worldContainer.add(rubble);
+      place(rubble, prisonOnHex.q, prisonOnHex.r);
+      rubbles.push(rubble);
+      log("<span style='color:#fbbf24;'>The prison cart has been smashed open!</span>");
+      if (Math.random() < 0.4) { // 40% chance to spawn prisoners
+        const spawnCount = Math.random() < 0.5 ? 1 : 2;
+        log(`<span style='color:#fca5a5;'>${spawnCount} desperate prisoner(s) emerge from the wreckage!</span>`);
+        for (let i = 0; i < spawnCount; i++) {
+          const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]].sort(() => Math.random() - 0.5);
+          for (const d of dirs) {
+            const nq = q + d[0], nr = r + d[1];
+            const occupied = enemies.some(e => e.hp > 0 && e.q === nq && e.r === nr);
+            if (!occupied) { spawnAlly("Freed Prisoner", nq, nr, q, r); break; }
+          }
+        }
+      }
+    }
+    updateUI(); return;
+  }
+
+  if(dist !== 1 || !isPassableBiome(hit.object.userData.biomeKey)) { log("Invalid pathing."); return; }
+  if (state.ap < 1) { log("Insufficient Action Points."); SoundSystem.playBuzzer(); return; }
+  
+  state.ap -= 1;
+  hero.userData.startPos = hero.position.clone();
+  const pTarget = HexUtils.toWorld(q, r);
+  hero.userData.targetPos = new THREE.Vector3(pTarget.x, hit.object.position.y, pTarget.z);
+  hero.userData.moveT = 0;
+  hero.userData.isMoving = true;
+  state.q = q; state.r = r;
+
+  enclaves.forEach(enc => {
+    if(enc.q === q && enc.r === r){
+      if(state.shillings >= 25){
+        state.shillings -= 25; state.army += 4;
+        log("<span style='color:#60a5fa;'>Conscripted 4 fighters from enclave ruins. (-25 shillings)</span>");
+        SoundSystem.playLevelUp();
+      } else {
+        log("<span style='color:#94a3b8;'>Enclave drafting requires 25 shillings.</span>");
+      }
+    }
+  });
+  treasures.forEach(t => { 
+    if(!t.taken && t.q === q && t.r === r){ 
+      t.taken = true; t.mesh.visible = false; 
+      const loot = t.isBossChest ? 80 : 22; 
+      state.shillings += loot; 
+      if(t.isBossChest){ 
+        state.inventory.push("Tyrant's Void Relic"); 
+        tryLoot(1.0); 
+        log(`<span style="color:#d946ef;">Reliquary opened! +80 shillings & Tyrant's Void Relic acquired!</span>`); 
+      } else {
+        log(`<span style='color:#fbbf24;'>Iron coffre scavenged! +${loot} shillings looted.</span>`); 
+        tryLoot(0.5); // Increased from 0.25
+      }
+      SoundSystem.playLevelUp(); 
+    }
+  });
+  updateUI();
+  checkDeath();
+});
+
+window.addEventListener("pointermove", e => {
+  if (!isRotating) return;
+  const dx = e.clientX - prevMouseX;
+  const dy = e.clientY - prevMouseY;
+  prevMouseX = e.clientX;
+  prevMouseY = e.clientY;
+
+  cameraTheta -= dx * 0.005;
+  cameraPhi = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, cameraPhi - dy * 0.005));
+
+  baseCamPos.set(
+    cameraRadius * Math.sin(cameraPhi) * Math.sin(cameraTheta),
+    cameraRadius * Math.cos(cameraPhi),
+    cameraRadius * Math.sin(cameraPhi) * Math.cos(cameraTheta)
+  );
+});
+
+window.addEventListener("pointerup", e => {
+  if (e.button === 1 || e.button === 2) isRotating = false;
+});
+
+window.addEventListener("contextmenu", e => {
+  if (!e.target.closest('#ui-stack')) {
+    e.preventDefault();
+  }
+});
+
+document.getElementById("start-game-btn").addEventListener("click", () => {
+  const seedInput = document.getElementById("seed-input");
+  pinnedWorldSeed = seedInput && seedInput.value.trim() ? seedInput.value.trim() : null;
+  const ss = document.getElementById("start-screen");
+  ss.classList.add("hidden");
+  setTimeout(() => ss.style.display = "none", 600);
+  // Initialize and resume audio on first user gesture
+  SoundSystem.init();
+  if (SoundSystem.ctx) SoundSystem.ctx.resume();
+  gameStarted = true;
+  generateWorld(1); updateUI();
+  log("<b style='color:#fff; font-size:13px;'>Turn 1</b>");
+  log("You arrive in Forest Haven.");
+});
+
+document.getElementById("return-menu-btn").addEventListener("click", () => location.reload());
+
+function applyDynamicColors(key) {
+  const rgb = activeColors[key], hex = rgbToHex(rgb), threeColor = rgbToThreeColor(rgb);
+
+  if (key === "grass") { biomeMaterials.BUSH_TWIST.color.copy(threeColor); biomeMaterials.BUSH_TWIST.needsUpdate = true; }
+  else if (key === "silt") { biomeMaterials.SILT.color.copy(threeColor); biomeMaterials.SILT.needsUpdate = true; }
+  else if (key === "deadScrub") { biomeMaterials.DEAD_SCRUB.color.copy(threeColor); biomeMaterials.DEAD_SCRUB.needsUpdate = true; }
+  else if (key === "crag") { biomeMaterials.CRAG.color.copy(threeColor); biomeMaterials.CRAG.needsUpdate = true; }
+  else if (key === "forestHaven") { biomeMaterials.FOREST_HAVEN.color.copy(threeColor); biomeMaterials.FOREST_HAVEN.needsUpdate = true; }
+  else if (key === "deepWater") { biomeMaterials.DEEP_WATER.color.copy(threeColor); biomeMaterials.DEEP_WATER.needsUpdate = true; }
+  else if (key === "shallowWater") { /* No longer needed as it's tied to river */ }
+  else if (key === "river") { biomeMaterials.RIVER.color.copy(threeColor); biomeMaterials.RIVER.needsUpdate = true; }
+  else if (key === "house") { biomeMaterials.HOUSE.color.copy(threeColor); biomeMaterials.HOUSE.needsUpdate = true; }
+  else if (key === "dirt") { biomeMaterials.DIRT.color.copy(threeColor); biomeMaterials.DIRT.needsUpdate = true; }
+  else if (key === "lake") { biomeMaterials.LAKE.color.copy(threeColor); biomeMaterials.LAKE.needsUpdate = true; }
+  else if (key === "gold") { brightGoldMat.color.copy(threeColor); brightGoldMat.needsUpdate = true; }
+  else if (key === "crimson") { royalCrimsonMat.color.copy(threeColor); royalCrimsonMat.needsUpdate = true; }
+  // When river color changes, update shallow water and lake too
+  if (key === "river") {
+    biomeMaterials.SHALLOW_WATER.color.copy(threeColor); biomeMaterials.SHALLOW_WATER.needsUpdate = true;
+    biomeMaterials.LAKE.color.copy(threeColor); biomeMaterials.LAKE.needsUpdate = true;
+  }
+  if (key === "silt") {
+    biomeMaterials.FARM.color.copy(threeColor); biomeMaterials.FARM.needsUpdate = true;
+    biomeMaterials.FIELD.color.copy(threeColor); biomeMaterials.FIELD.needsUpdate = true;
+  }
+  else if (key === "wretch") { wretchCarapaceMat.color.copy(threeColor); wretchCarapaceMat.needsUpdate = true; }
+  else if (key === "husk") { huskRobeMat.color.copy(threeColor); huskRobeMat.needsUpdate = true; }
+  else if (key === "abomination") { abomBodyMat.color.copy(threeColor); abomBodyMat.needsUpdate = true; }
+  else if (key === "uiBg") { document.documentElement.style.setProperty('--color-bg', hex); scene.background.copy(threeColor); }
+  else if (key === "uiAccent") { 
+    document.documentElement.style.setProperty('--color-accent', hex);
+    document.querySelectorAll('.panel').forEach(p => p.style.borderLeftColor = hex);
+  }
+}
+
+Object.keys(activeColors).forEach(applyDynamicColors);
+
+const shakeOffset = new THREE.Vector3();
+renderer.setAnimationLoop(() => {
+  const now = Date.now();
+  const delta = clock.getDelta();
+  const frameAdjust = delta * 60; // Normalize to 60fps base
+
+  if (hero && hero.userData.isSpawning) {
+    hero.position.y = THREE.MathUtils.lerp(hero.position.y, hero.userData.targetY, 0.12);
+    if (Math.abs(hero.position.y - hero.userData.targetY) < 0.05) {
+      hero.position.y = hero.userData.targetY;
+      hero.userData.isSpawning = false;
+      triggerCameraShake(0.2);
+      SoundSystem.playDamage();
+    }
+  }
+
+  if (hero && hero.userData.isMoving) {
+    hero.userData.moveT += 0.08 * frameAdjust;
+    const t = Math.min(hero.userData.moveT, 1);
+    
+    // Parabolic Arc logic
+    const jumpHeight = 2.5;
+    hero.position.x = THREE.MathUtils.lerp(hero.userData.startPos.x, hero.userData.targetPos.x, t);
+    hero.position.z = THREE.MathUtils.lerp(hero.userData.startPos.z, hero.userData.targetPos.z, t);
+    const baseHeight = THREE.MathUtils.lerp(hero.userData.startPos.y, hero.userData.targetPos.y, t);
+    hero.position.y = baseHeight + Math.sin(t * Math.PI) * jumpHeight;
+
+    if (t >= 1) {
+      hero.userData.isMoving = false;
+      hero.position.copy(hero.userData.targetPos);
+      triggerCameraShake(0.2);
+      SoundSystem.playDamage();
+    }
+  }
+
+  enemies.forEach(e => {
+    if (e.hp > 0 && e.mesh && e.mesh.userData.isMoving) {
+      e.mesh.userData.moveT += 0.08 * frameAdjust;
+      const t = Math.min(e.mesh.userData.moveT, 1);
+      const jumpHeight = 2.0;
+      e.mesh.position.x = THREE.MathUtils.lerp(e.mesh.userData.startPos.x, e.mesh.userData.targetPos.x, t);
+      e.mesh.position.z = THREE.MathUtils.lerp(e.mesh.userData.startPos.z, e.mesh.userData.targetPos.z, t);
+      const bH = THREE.MathUtils.lerp(e.mesh.userData.startPos.y, e.mesh.userData.targetPos.y, t);
+      e.mesh.position.y = bH + Math.sin(t * Math.PI) * jumpHeight;
+      if (t >= 1) {
+        e.mesh.userData.isMoving = false;
+        e.mesh.position.copy(e.mesh.userData.targetPos);
+        triggerCameraShake(0.1);
+      }
+    }
+  });
+
+  allies.forEach(a => {
+    if (a.hp > 0 && a.mesh && a.mesh.userData.isMoving) {
+      a.mesh.userData.moveT += 0.08 * frameAdjust;
+      const t = Math.min(a.mesh.userData.moveT, 1);
+      const jumpHeight = 1.5;
+      a.mesh.position.x = THREE.MathUtils.lerp(a.mesh.userData.startPos.x, a.mesh.userData.targetPos.x, t);
+      a.mesh.position.z = THREE.MathUtils.lerp(a.mesh.userData.startPos.z, a.mesh.userData.targetPos.z, t);
+      const bH = THREE.MathUtils.lerp(a.mesh.userData.startPos.y, a.mesh.userData.targetPos.y, t);
+      a.mesh.position.y = bH + Math.sin(t * Math.PI) * jumpHeight;
+      if (t >= 1) {
+        a.mesh.userData.isMoving = false;
+        a.mesh.position.copy(a.mesh.userData.targetPos);
+        triggerCameraShake(0.1);
+      }
+    }
+  });
+
+  prisons.forEach(p => {
+    if (p.mesh && p.mesh.userData.isMoving) {
+      p.mesh.userData.moveT += 0.08 * frameAdjust;
+      const t = Math.min(p.mesh.userData.moveT, 1);
+      const jumpHeight = 1.0;
+      p.mesh.position.x = THREE.MathUtils.lerp(p.mesh.userData.startPos.x, p.mesh.userData.targetPos.x, t);
+      p.mesh.position.z = THREE.MathUtils.lerp(p.mesh.userData.startPos.z, p.mesh.userData.targetPos.z, t);
+      const bH = THREE.MathUtils.lerp(p.mesh.userData.startPos.y, p.mesh.userData.targetPos.y, t);
+      p.mesh.position.y = bH + Math.sin(t * Math.PI) * jumpHeight;
+      if (t >= 1) {
+        p.mesh.userData.isMoving = false;
+        p.mesh.position.copy(p.mesh.userData.targetPos);
+      }
+    }
+  });
+
+  if (boss && boss.hp > 0) {
+    if (boss._light) boss._light.intensity = 4 + Math.sin(now * 0.004) * 2.5;
+    boss.mesh.rotation.y += 0.008;
+  }
+
+  shakeOffset.set(0, 0, 0);
+  if (shakeTime > 0) {
+    shakeTime--;
+    const s = shakeIntensity * (shakeTime / 12);
+    shakeOffset.set((Math.random() - 0.5) * s, (Math.random() - 0.5) * s * 0.5, (Math.random() - 0.5) * s);
+  }
+
+  camera.position.copy(hero.position).add(baseCamPos).add(shakeOffset);
+  camera.lookAt(hero.position);
+
+  for (let i = activeFx.length - 1; i >= 0; i--) {
+    if (activeFx[i].tick()) { 
+      scene.remove(activeFx[i].mesh);
+      if(activeFx[i].mesh.geometry && activeFx[i].mesh.geometry !== smokeGeo) activeFx[i].mesh.geometry.dispose();
+      // Crucial: dispose cloned materials
+      if(activeFx[i].mesh.material) activeFx[i].mesh.material.dispose();
+      activeFx.splice(i, 1); 
+    }
+  }
+  if (weatherSystem) {
+    weatherSystem.update(frameAdjust);
+  }
+
+  renderer.render(scene, camera);
+
+  if (gameStarted && now % 150 < 16) {
+    rubbles.forEach(r => { if(Math.random() < 0.3) spawnSmokePuff(r.position); });
+  }
+});
+
+// Automatically trigger the game start on load
+const autoStartGame = () => {
+  const startBtn = document.getElementById("start-game-btn");
+  if (startBtn) {
+    startBtn.click();
+  }
+};
+
+if (document.readyState === "complete" || document.readyState === "interactive") {
+  autoStartGame();
+} else {
+  window.addEventListener("DOMContentLoaded", autoStartGame);
+}
+
+// Resume audio context on first user gesture
+const resumeAudio = () => {
+  if (SoundSystem.ctx && SoundSystem.ctx.state === 'suspended') {
+    SoundSystem.ctx.resume();
+  }
+  window.removeEventListener('pointerdown', resumeAudio);
+  window.removeEventListener('keydown', resumeAudio);
+};
+window.addEventListener('pointerdown', resumeAudio);
+window.addEventListener('keydown', resumeAudio);
+
+</script>
+</body>
+</html>
