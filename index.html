@@ -218,6 +218,7 @@
       emissive: 0x222222,
       emissiveIntensity: 0.3
     });
+    coverMaterial.color.setHex(0x1a2233);
     
     // Back cover material
     const backCoverMaterial = new THREE.MeshStandardMaterial({
@@ -309,25 +310,6 @@
     ];
     
     const geometry = new THREE.BoxGeometry(width, height, depth);
-    
-    // Adjust UVs for front face (face index 4, +Z) to fill entire texture
-    const uvAttribute = geometry.attributes.uv;
-    const uvArray = uvAttribute.array;
-    
-    // Front face vertices in BoxGeometry (indices 16-23 for UVs, 4 vertices * 2 UV coords each)
-    // BoxGeometry face order: +X (right), -X (left), +Y (top), -Y (bottom), +Z (front), -Z (back)
-    // Each face has 4 vertices, each vertex has 2 UV coords = 8 values per face
-    // Front face starts at index 4 * 8 = 32
-    const frontFaceStart = 32;
-    
-    // Set UVs to cover full texture (0 to 1) for front face
-    // Vertex order for front face: bottom-left, bottom-right, top-right, top-left
-    uvArray[frontFaceStart + 0] = 0; uvArray[frontFaceStart + 1] = 0;     // bottom-left
-    uvArray[frontFaceStart + 2] = 1; uvArray[frontFaceStart + 3] = 0;     // bottom-right
-    uvArray[frontFaceStart + 4] = 1; uvArray[frontFaceStart + 5] = 1;     // top-right
-    uvArray[frontFaceStart + 6] = 0; uvArray[frontFaceStart + 7] = 1;     // top-left
-    
-    uvAttribute.needsUpdate = true;
     
     const dvdCase = new THREE.Mesh(geometry, materials);
     dvdCase.castShadow = true;
