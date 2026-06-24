@@ -211,6 +211,7 @@
     
     // Load cover texture
     const textureLoader = new THREE.TextureLoader();
+    textureLoader.setCrossOrigin('anonymous');
     const coverMaterial = new THREE.MeshStandardMaterial({
       roughness: 0.2,
       metalness: 0.1,
@@ -220,21 +221,43 @@
     // Fallback if texture fails to load
     coverMaterial.color.setHex(0x1a2233);
     
-    textureLoader.load(
+    // Try both path casings for cross-platform compatibility
+    const texturePaths = [
       'Assets/14796d0c-e01c-4da3-916a-7b75ab0b0953.png',
-      function(texture) {
-        texture.minFilter = THREE.LinearFilter;
-        coverMaterial.map = texture;
-        coverMaterial.needsUpdate = true;
+      'assets/14796d0c-e01c-4da3-916a-7b75ab0b0953.png'
+    ];
+    
+    function loadTexture(pathIndex) {
+      if (pathIndex >= texturePaths.length) {
+        console.error('All texture paths failed');
         document.getElementById('loading-text').style.display = 'none';
-      },
-      undefined,
-      function(err) {
-        console.error('Error loading texture:', err);
-        // Keep the fallback color
-        document.getElementById('loading-text').style.display = 'none';
+        return;
       }
-    );
+      
+      textureLoader.load(
+        texturePaths[pathIndex],
+        function(texture) {
+          console.log('Texture loaded successfully from', texturePaths[pathIndex], ':', texture.image.width, 'x', texture.image.height);
+          texture.minFilter = THREE.LinearFilter;
+          texture.magFilter = THREE.LinearFilter;
+          texture.wrapS = THREE.ClampToEdgeWrapping;
+          texture.wrapT = THREE.ClampToEdgeWrapping;
+          texture.colorSpace = THREE.SRGBColorSpace;
+          coverMaterial.map = texture;
+          coverMaterial.needsUpdate = true;
+          document.getElementById('loading-text').style.display = 'none';
+        },
+        function(xhr) {
+          console.log('Texture loading progress from', texturePaths[pathIndex], ':', (xhr.loaded / xhr.total * 100) + '%');
+        },
+        function(err) {
+          console.error('Error loading texture from', texturePaths[pathIndex], ':', err);
+          loadTexture(pathIndex + 1);
+        }
+      );
+    }
+    
+    loadTexture(0);
     
     // Other materials for the case
     const plasticMaterial = new THREE.MeshStandardMaterial({
@@ -267,6 +290,26 @@
     ];
     
     const geometry = new THREE.BoxGeometry(width, height, depth);
+    
+    // Adjust UVs for front face (face index 4, +Z) to fill entire texture
+    const uvAttribute = geometry.attributes.uv;
+    const uvArray = uvAttribute.array;
+    
+    // Front face vertices in BoxGeometry (indices 16-23 for UVs, 4 vertices * 2 UV coords each)
+    // BoxGeometry face order: +X (right), -X (left), +Y (top), -Y (bottom), +Z (front), -Z (back)
+    // Each face has 4 vertices, each vertex has 2 UV coords = 8 values per face
+    // Front face starts at index 4 * 8 = 32
+    const frontFaceStart = 32;
+    
+    // Set UVs to cover full texture (0 to 1) for front face
+    // Vertex order for front face: bottom-left, bottom-right, top-right, top-left
+    uvArray[frontFaceStart + 0] = 0; uvArray[frontFaceStart + 1] = 0;     // bottom-left
+    uvArray[frontFaceStart + 2] = 1; uvArray[frontFaceStart + 3] = 0;     // bottom-right
+    uvArray[frontFaceStart + 4] = 1; uvArray[frontFaceStart + 5] = 1;     // top-right
+    uvArray[frontFaceStart + 6] = 0; uvArray[frontFaceStart + 7] = 1;     // top-left
+    
+    uvAttribute.needsUpdate = true;
+    
     const dvdCase = new THREE.Mesh(geometry, materials);
     dvdCase.castShadow = true;
     dvdCase.receiveShadow = true;
