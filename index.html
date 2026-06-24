@@ -151,7 +151,7 @@
     </div>
     
     <div class="button-group">
-      <button id="begin-adventure-button">Begin</button>
+      <button id="begin-adventure-button">Begin (Space)</button>
     </div>
     
     <div id="loading-text">Loading 3D Engine...</div>
@@ -164,7 +164,18 @@
     // Scene setup
     const container = document.getElementById('canvas-container');
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x050a15);
+    const bgCanvas = document.createElement('canvas');
+    bgCanvas.width = 512;
+    bgCanvas.height = 512;
+    const bgCtx = bgCanvas.getContext('2d');
+    const bgGradient = bgCtx.createRadialGradient(256, 256, 0, 256, 256, 256);
+    bgGradient.addColorStop(0, '#0a1428');
+    bgGradient.addColorStop(0.3, '#080e20');
+    bgGradient.addColorStop(0.7, '#03060d');
+    bgGradient.addColorStop(1, '#000000');
+    bgCtx.fillStyle = bgGradient;
+    bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+    scene.background = new THREE.CanvasTexture(bgCanvas);
     
     // Camera setup
     const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
@@ -180,7 +191,7 @@
     container.appendChild(renderer.domElement);
     
     // Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
     
     // Warm key light
@@ -214,22 +225,15 @@
     const coverMaterial = new THREE.MeshStandardMaterial({
       roughness: 0.15,
       metalness: 0.05,
-      color: 0xffffff,
-      emissive: 0x222222,
-      emissiveIntensity: 0.3
+      color: 0xffffff
     });
-    coverMaterial.color.setHex(0x1a2233);
     
     // Back cover material
     const backCoverMaterial = new THREE.MeshStandardMaterial({
       roughness: 0.15,
       metalness: 0.05,
-      color: 0xffffff,
-      emissive: 0x222222,
-      emissiveIntensity: 0.3
+      color: 0xffffff
     });
-
-    backCoverMaterial.color.setHex(0x1a2233);
 
     // Try both path casings for cross-platform compatibility
     const frontTexturePaths = [
@@ -341,6 +345,12 @@
     
     // Interaction variables
     let isDragging = false;
+    let cameraZoom = 15;
+
+    // Mouse wheel zoom
+    window.addEventListener('wheel', (event) => {
+      cameraZoom = Math.max(8, Math.min(20, cameraZoom + event.deltaY * 0.01));
+    }, { passive: true });
     let previousMouseX = 0;
     let previousMouseY = 0;
     let targetRotationX = 0;
@@ -407,6 +417,14 @@
       canvas.style.cursor = 'default';
     });
     
+    // Spacebar keybind
+    window.addEventListener('keydown', (event) => {
+      if (event.code === 'Space' && !isTransitioning) {
+        event.preventDefault();
+        beginButton.click();
+      }
+    });
+
     // Handle Window Resize
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
@@ -479,11 +497,14 @@
         // Apply velocity for inertia when dragging stops
         targetRotationX += velocityY;
         targetRotationY += velocityX;
-        velocityX *= 0.95;
-        velocityY *= 0.95;
+        velocityX *= 0.99;
+        velocityY *= 0.99;
         
         dvdGroup.rotation.x = currentRotationX;
         dvdGroup.rotation.y = currentRotationY;
+
+        // Smooth zoom
+        camera.position.z += (cameraZoom - camera.position.z) * 0.1;
       }
       
       // Animate particles
