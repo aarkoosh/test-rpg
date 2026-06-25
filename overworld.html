@@ -45,7 +45,7 @@
     }
 
     .panel {
-      background: linear-gradient(135deg, #131924 0%, #1a2233 100%);
+      background: rgba(0, 0, 0, 0.85);
       color: #e2e8f0;
       padding: 16px;
       border-radius: 8px;
@@ -216,27 +216,18 @@
       color: #94a3b8;
     }
     #panel-resize-handle {
-      height: 10px;
+      height: 8px;
       margin-top: auto;
       cursor: ns-resize;
-      background: #2a3a4e;
-      border-radius: 4px;
+      background: transparent;
       flex-shrink: 0;
       transition: background 0.2s;
-      border-top: 1px solid #3a4a5e;
-      border-bottom: 1px solid #3a4a5e;
+      border-radius: 2px;
       display: flex;
       align-items: center;
       justify-content: center;
     }
-    #panel-resize-handle::after {
-      content: "≡";
-      font-size: 12px;
-      color: #64748b;
-      line-height: 1;
-    }
-    #panel-resize-handle:hover { background: #3a4a5e; }
-    #panel-resize-handle:hover::after { color: #94a3b8; }
+    #panel-resize-handle:hover { background: rgba(255,255,255,0.08); }
     #log::-webkit-scrollbar { width: 4px; }
     #log::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
 
@@ -376,6 +367,70 @@
       color: #fff;
     }
 
+    #travel-popup {
+      position: absolute;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 250;
+    }
+    #travel-popup .travel-content {
+      background: rgba(19, 25, 36, 0.95);
+      border: 2px solid var(--color-gold);
+      border-radius: 12px;
+      padding: 32px 48px;
+      text-align: center;
+      box-shadow: 0 0 40px rgba(251, 191, 36, 0.2);
+    }
+    #travel-popup .travel-title {
+      font-family: 'Metal Mania', system-ui;
+      font-size: 28px;
+      color: var(--color-gold);
+      margin: 0 0 8px 0;
+      letter-spacing: 2px;
+    }
+    #travel-popup .travel-desc {
+      font-size: 14px;
+      color: #cbd5e1;
+      margin-bottom: 24px;
+      letter-spacing: 1px;
+    }
+    #travel-popup .travel-btns {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+    }
+    #travel-popup .travel-btn {
+      padding: 10px 32px;
+      font-family: var(--font-serif);
+      font-size: 16px;
+      letter-spacing: 2px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid;
+      transition: all 0.2s ease;
+    }
+    #travel-popup .travel-btn-yes {
+      background: #1e293b;
+      border-color: var(--color-gold);
+      color: var(--color-gold);
+    }
+    #travel-popup .travel-btn-yes:hover {
+      background: var(--color-gold);
+      color: #0f172a;
+    }
+    #travel-popup .travel-btn-no {
+      background: #27272a;
+      border-color: #3f3f46;
+      color: #f4f4f5;
+    }
+    #travel-popup .travel-btn-no:hover {
+      background: #dc2626;
+      border-color: #ef4444;
+    }
+
     .highlight { color: #f87171; font-weight: normal; font-style: normal;}
 
     .dmg-popup {
@@ -468,16 +523,22 @@
 </head>
 <body>
   <div id="start-screen">
-    <div style="height: 40px;"></div>
-    <div style="margin-bottom: 30px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
-      <label for="seed-input" style="font-size: 12px; color: #94a3b8; letter-spacing: 1.5px; text-transform: uppercase;">World Seed (optional — blank = new layout each time)</label>
-      <input id="seed-input" type="text" placeholder="Enter seed..." style="background: rgba(15, 23, 42, 0.8); border: 1px solid #334155; color: #f8fafc; padding: 8px 16px; font-family: monospace; font-size: 14px; border-radius: 4px; text-align: center; width: 240px; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#334155'">
-    </div>
-    <button id="start-game-btn">Begin Journey</button>
+      <div style="height: 60px;"></div>
+      <button id="start-game-btn">Begin Journey</button>
   </div>
   <div id="death-screen">
     <h1 class="death-title">You Died</h1>
     <button id="return-menu-btn">Return to Main Menu</button>
+  </div>
+  <div id="travel-popup">
+    <div class="travel-content">
+      <h2 class="travel-title">Travel Beyond?</h2>
+      <div class="travel-desc">You stand at the edge of <span id="travel-map-name" style="color:#fbbf24;">the unknown</span>.<br>Venture forth into the next area?</div>
+      <div class="travel-btns">
+        <button id="travel-btn-yes" class="travel-btn travel-btn-yes">Yes</button>
+        <button id="travel-btn-no" class="travel-btn travel-btn-no">No</button>
+      </div>
+    </div>
   </div>
   <div id="ui-stack">
     <div id="header-ui" class="panel">
@@ -493,7 +554,7 @@
           <option value="5">V: The Crimson Citadel</option>
           <option value="6">VI: Final Ember</option>
         </select>
-        <div id="seed-display" style="font-size: 9px; color: #64748b; margin-top: 6px; letter-spacing: 1px; font-family: monospace; text-align: center;">SEED: <span id="current-seed-val" style="color: #94a3b8;">-</span></div>
+        <div id="map-coords-display" style="font-size: 9px; color: #64748b; margin-top: 6px; letter-spacing: 1px; font-family: monospace; text-align: center;"><span id="current-map-coords" style="color: #94a3b8;">I: Iron & Gloom [0,0]</span></div>
       </div>
     </div>
 
@@ -540,15 +601,17 @@
 
     <div id="chronicle-ui" class="panel">
       <div id="log"></div>
-      <button class="action-btn" id="btn-explore-area" style="margin-top: 4px;">
-        <span>Explore Area</span>
-        <span class="hotkey">[E]</span>
-      </button>
-      <button class="action-btn action-btn-end" id="btn-end-turn" style="margin-top: 4px;">
-        <span>Advance Darkness & Horrors</span>
-        <span class="hotkey">[Space]</span>
-      </button>
-      <div id="panel-resize-handle"></div>
+      <div class="action-bar" style="margin-top: 4px;">
+        <button class="action-btn" id="btn-explore-area">
+          <span>Explore Area</span>
+          <span class="hotkey">[E]</span>
+        </button>
+        <button class="action-btn action-btn-end" id="btn-end-turn">
+          <span>End Turn</span>
+          <span class="hotkey">[Space]</span>
+        </button>
+      </div>
+      <div id="panel-resize-handle" style="margin-top: 12px;"></div>
     </div>
   </div>
 
@@ -883,6 +946,146 @@ let seededRandom = Math.random;
 let mapSeed = "";
 let pinnedWorldSeed = null;
 
+// --- MULTI-MAP SYSTEM ---
+const CHAPTER_NAMES = ["", "I: Iron & Gloom", "II: Obsidian Tides", "III: The Gilded Blight", "IV: Echoes of Aether", "V: The Crimson Citadel", "VI: Final Ember"];
+const MAX_CACHED_MAPS = 30;
+let currentMapKey = "ch1_[0,0]";
+let currentMapCoords = { chapter: 1, x: 0, y: 0 };
+const mapCache = new Map();
+
+// Hex neighbor offsets for the map grid (6-directional)
+const MAP_HEX_DIRS = [[1,0], [-1,0], [0,1], [0,-1], [1,-1], [-1,1]];
+const MAP_DIR_NAMES = { "1,0": "East", "-1,0": "West", "0,1": "Southeast", "0,-1": "Northwest", "1,-1": "Northeast", "-1,1": "Southwest" };
+
+function mapKey(ch, x, y) { return `ch${ch}_[${x},${y}]`; }
+
+function seededRandomForMap(chapter, mx, my) {
+  const h = hashSeedString(`${mapSeed}_${chapter}_${mx}_${my}`);
+  return mulberry32(h);
+}
+
+class MapSnapshot {
+  constructor(key, chapter, mx, my, biome) {
+    this.key = key;
+    this.chapter = chapter;
+    this.mx = mx;
+    this.my = my;
+    this.biome = biome;
+    this.enemies = [];
+    this.allies = [];
+    this.headstones = [];
+    this.corpses = [];
+    this.portals = [];
+    this.churches = [];
+    this.prisons = [];
+    this.rubbles = [];
+    this.playerQ = 0;
+    this.playerR = 0;
+    this.turn = 1;
+    this.connectedMaps = {};
+    for (const [dx, dy] of MAP_HEX_DIRS) {
+      this.connectedMaps[`${dx},${dy}`] = null;
+    }
+    this.lastAccessed = Date.now();
+  }
+
+  connectTo(dirX, dirY, targetKey) {
+    this.connectedMaps[`${dirX},${dirY}`] = targetKey;
+  }
+
+  getConnected(dirX, dirY) {
+    return this.connectedMaps[`${dirX},${dirY}`] || null;
+  }
+}
+
+function cacheMap(key, snapshot) {
+  snapshot.lastAccessed = Date.now();
+  mapCache.set(key, snapshot);
+  if (mapCache.size > MAX_CACHED_MAPS) {
+    let oldestKey = null;
+    let oldestTime = Infinity;
+    for (const [k, snap] of mapCache) {
+      if (snap.lastAccessed < oldestTime) {
+        oldestTime = snap.lastAccessed;
+        oldestKey = k;
+      }
+    }
+    if (oldestKey) mapCache.delete(oldestKey);
+  }
+}
+
+function updateMapCoordsDisplay() {
+  const el = document.getElementById("current-map-coords");
+  if (el) {
+    const c = currentMapCoords;
+    el.textContent = `${CHAPTER_NAMES[c.chapter] || ""} [${c.x},${c.y}]`;
+  }
+}
+
+function saveCurrentMapToCache() {
+  const snap = new MapSnapshot(currentMapKey, currentMapCoords.chapter, currentMapCoords.x, currentMapCoords.y, currentBiome);
+  snap.enemies = enemies.filter(e => e.hp > 0).map(e => ({
+    type: e.type, q: e.q, r: e.r, hp: e.hp, maxHp: e.maxHp, atk: e.atk, range: e.range,
+    faction: e.faction, ap: e.ap || 2, maxAp: e.maxAp || 2, aggroRange: e.aggroRange || 6, isBoss: !!e.isBoss
+  }));
+  snap.allies = allies.filter(a => a.hp > 0).map(a => ({
+    type: a.type, q: a.q, r: a.r, hp: a.hp, maxHp: a.maxHp, atk: a.atk, range: a.range, homeQ: a.homeQ, homeR: a.homeR, leashRange: a.leashRange
+  }));
+  snap.headstones = headstones.filter(h => !h.looted).map(h => ({
+    q: h.q, r: h.r
+  }));
+  snap.corpses = corpses.filter(c => !c.looted).map(c => ({
+    q: c.q, r: c.r
+  }));
+  snap.portals = portals.filter(p => p.targetChapter).map(p => ({
+    q: p.q, r: p.r, targetChapter: p.targetChapter
+  }));
+  snap.churches = churches.filter(c => c.hp > 0).map(c => ({ q: c.q, r: c.r, hp: c.hp }));
+  snap.prisons = prisons.filter(p => p.hp > 0).map(p => ({ q: p.q, r: p.r, hp: p.hp }));
+  snap.playerQ = state.q;
+  snap.playerR = state.r;
+  snap.turn = state.turn;
+
+  // Preserve connections from the previous snapshot if it exists
+  const prevSnap = mapCache.get(currentMapKey);
+  if (prevSnap) {
+    snap.connectedMaps = prevSnap.connectedMaps;
+  }
+
+  cacheMap(currentMapKey, snap);
+}
+
+function loadMapFromCache(key) {
+  const snap = mapCache.get(key);
+  if (!snap) return null;
+  snap.lastAccessed = Date.now();
+  return snap;
+}
+
+function getBiomeForMap(chapter, mx, my) {
+  const rng = seededRandomForMap(chapter, mx, my);
+  const ch = parseInt(chapter);
+  const roll = rng();
+  if (ch === 1) {
+    if (roll < 0.5) return "BUSH_TWIST";
+    if (roll < 0.8) return "CRAG";
+    return "DIRT";
+  } else if (ch === 2) {
+    return "SILT";
+  } else if (ch === 3) {
+    return "SILT";
+  } else if (ch === 4) {
+    return "CRAG";
+  } else if (ch === 5) {
+    if (roll < 0.6) return "DEAD_SCRUB";
+    return "CRAG";
+  } else {
+    return "SILT";
+  }
+}
+
+let currentBiome = "BUSH_TWIST";
+
 function hashSeedString(seedVal) {
   let hash = 0;
   for (let i = 0; i < seedVal.length; i++) {
@@ -891,18 +1094,13 @@ function hashSeedString(seedVal) {
   return hash;
 }
 
-function initMapRandom() {
+function initMapRandom(chapter, mapX, mapY) {
   if (pinnedWorldSeed) {
     mapSeed = pinnedWorldSeed;
-    seededRandom = mulberry32(hashSeedString(pinnedWorldSeed));
-  } else {
-    seededRandom = Math.random;
-    mapSeed = Math.floor(Math.random() * 1e9).toString(36);
   }
-  const seedDisplay = document.getElementById("current-seed-val");
-  if (seedDisplay) {
-    seedDisplay.innerText = pinnedWorldSeed ? mapSeed : `${mapSeed} (random)`;
-  }
+  // Use coordinate-specific seed for deterministic terrain generation
+  const coordSeed = hashSeedString(`${mapSeed}_${chapter || 1}_${mapX || 0}_${mapY || 0}`);
+  seededRandom = mulberry32(coordSeed);
 }
 
 // --- PROP MATERIALS ---
@@ -1083,18 +1281,27 @@ const biomeMaterials = {
   LAKE:        new THREE.MeshStandardMaterial({ color: rgbToThreeColor(activeColors.river), roughness: 0.1, metalness: 0.5, vertexColors: false })
 };
 
-let tiles = [], enclaves = [], enemies = [], allies = [], treasures = [], churches = [], prisons = [], rubbles = [];
+let tiles = [], enclaves = [], enemies = [], allies = [], headstones = [], corpses = [], portals = [], churches = [], prisons = [], rubbles = [];
 let boss = null, initialEnemyCount = 0;
+let availableTravelDirs = [];
 
 const SPAWN_LIMITS = { common: 40, elite: 12, boss: 1 };
 function getEnemyCount(category) {
   if (category === 'elite') return enemies.filter(e => e.hp > 0 && (e.type === "Abomination" || e.type === "Catapult")).length;
-  if (category === 'common') return enemies.filter(e => e.hp > 0 && (e.type === "Wretch" || e.type === "Husk" || e.type === "Knight" || e.type === "Priest" || e.type === "Guard" || e.type === "Ranger" || e.type === "TownFolk")).length;
+  if (category === 'common') return enemies.filter(e => e.hp > 0 && (e.type === "Wretch" || e.type === "Husk" || e.type === "Knight" || e.type === "Priest" || e.type === "Guard" || e.type === "Ranger" || e.type === "TownFolk" || e.type === "Zombie")).length;
   return enemies.filter(e => e.hp > 0 && e.isBoss).length;
 }
 
-function generateWorld(chapter) {
-  initMapRandom();
+function generateWorld(chapter, mapX, mapY) {
+  if (mapX === undefined) mapX = 0;
+  if (mapY === undefined) mapY = 0;
+  const ch = parseInt(chapter);
+  currentMapCoords = { chapter: ch, x: mapX, y: mapY };
+  currentMapKey = mapKey(chapter, mapX, mapY);
+  currentBiome = getBiomeForMap(chapter, mapX, mapY);
+  updateMapCoordsDisplay();
+  initMapRandom(chapter, mapX, mapY);
+  availableTravelDirs = [];
 
   // Initialize or update the weather system
   if (!weatherSystem) {
@@ -1129,9 +1336,7 @@ function generateWorld(chapter) {
     }
   });
   while(worldContainer.children.length > 0) worldContainer.remove(worldContainer.children[0]);
-  tiles = []; enclaves = []; enemies = []; allies = []; treasures = []; churches = []; prisons = []; rubbles = []; boss = null;
-  
-  const ch = parseInt(chapter);
+  tiles = []; enclaves = []; enemies = []; allies = []; headstones = []; corpses = []; portals = []; churches = []; prisons = []; rubbles = []; boss = null;
 
   // Randomize noise parameters for much more dramatic and large-scale coastlines
   const borderFreq = 0.12 + seededRandom() * 0.1;
@@ -1640,22 +1845,7 @@ function generateWorld(chapter) {
   // Map starts empty of enemies; reinforcements arrive turn-by-turn.
   initialEnemyCount = 15; 
 
-  for(let i=0; i<10; i++){
-    let tq, tr, attempts = 0;
-    do {
-      tq = Math.floor(seededRandom()*(R*2))-R; tr = Math.floor(seededRandom()*(R*2))-R;
-      attempts++;
-      if(!HexUtils.isValid(tq, tr)) continue;
-      const targetTile = tileLookup.get(`${tq},${tr}`);
-      const isLiquid = !targetTile || isWaterBiome(targetTile.userData.biomeKey);
-      const isReachable = targetTile && reachableTiles.has(`${tq},${tr}`);
-      if(!isLiquid && isReachable && !enemies.some(e=>e.q===tq && e.r===tr) && !treasures.some(t=>t.q===tq && t.r===tr) && HexUtils.dist(0,0,tq,tr) > 2) {
-        const mesh = createIronCoffre(); worldContainer.add(mesh); place(mesh, tq, tr);
-        treasures.push({ q: tq, r: tr, mesh, taken: false });
-        break;
-      }
-    } while (attempts < 100);
-  }
+
   if (hero) {
     worldContainer.add(hero);
     state.q = 0; state.r = 0;
@@ -1663,6 +1853,12 @@ function generateWorld(chapter) {
     hero.userData.targetY = hero.position.y;
     hero.position.y += 25;
     hero.userData.isSpawning = true;
+  }
+  if (ch > 1) {
+    const pMesh = createPortal();
+    worldContainer.add(pMesh);
+    place(pMesh, 0, 0);
+    portals.push({ q: 0, r: 0, mesh: pMesh, targetChapter: null });
   }
 }
 
@@ -1680,12 +1876,14 @@ function sampleSpawn(type, q, r) {
     "Ranger": { hp: 25, atk: 10, range: 3 },
     "TownFolk": { hp: 12, atk: 4, range: 1 },
     "Catapult": { hp: 80, atk: 20, range: 4 },
-    "Freed Prisoner": { hp: 15, atk: 6, range: 1, faction: 'neutral' }
+    "Freed Prisoner": { hp: 15, atk: 6, range: 1, faction: 'neutral' },
+    "Zombie": { hp: 20, atk: 7, range: 1 }
   }[type] || { hp: 20, atk: 5 };
 
   const humanFactions = ["Knight", "Priest", "Guard", "Ranger", "TownFolk", "Catapult"];
   const supernaturalFactions = ["Wretch", "Husk", "Abomination"];
-  const faction = humanFactions.includes(type) ? 'human' : (supernaturalFactions.includes(type) ? 'supernatural' : 'neutral');
+  const undeadFactions = ["Zombie"];
+  const faction = humanFactions.includes(type) ? 'human' : (supernaturalFactions.includes(type) ? 'supernatural' : (undeadFactions.includes(type) ? 'undead' : 'neutral'));
 
   enemies.push({ type, q, r, ...stats, maxHp: stats.hp, mesh, faction, maxAp: type === "Catapult" ? 1 : 2, aggroRange: type === "Catapult" ? 12 : 6 });
 }
@@ -1879,6 +2077,7 @@ function createMonster(type) {
   const group = new THREE.Group();
   const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
   base.position.y = 0.075; base.castShadow = true; group.add(base);
+  if(type === "Zombie") return createZombie();
   if(type === "Wretch") { 
     for(let i=0; i<6; i++) {
       const segment = new THREE.Mesh(new THREE.SphereGeometry(0.3 - (i*0.03), 10, 10), wretchCarapaceMat);
@@ -2036,6 +2235,51 @@ function createHeadstone() {
   return group;
 }
 
+function createCorpse() {
+  const group = new THREE.Group();
+  const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+  base.position.y = 0.075; base.castShadow = true; group.add(base);
+  const bodyMat = new THREE.MeshStandardMaterial({color: 0x6b7280, roughness: 0.9});
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8), bodyMat);
+  body.position.y = 0.15 + 0.08; body.scale.set(1.4, 0.4, 0.8); group.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 6), bodyMat);
+  head.position.set(0.35, 0.15 + 0.06, 0); group.add(head);
+  return group;
+}
+
+function createZombie() {
+  const group = new THREE.Group();
+  const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+  base.position.y = 0.075; base.castShadow = true; group.add(base);
+  const decayMat = new THREE.MeshStandardMaterial({color: 0x5a5a3a, roughness: 0.9});
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.18, 0.65, 8), decayMat);
+  body.position.y = 0.15 + 0.325; group.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), decayMat);
+  head.position.y = 0.15 + 0.75; group.add(head);
+  const lArm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.35, 4), decayMat);
+  lArm.position.set(-0.3, 0.15 + 0.45, 0.05); lArm.rotation.z = 0.4; group.add(lArm);
+  const rArm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.35, 4), decayMat);
+  rArm.position.set(0.3, 0.15 + 0.45, 0.05); rArm.rotation.z = -0.4; group.add(rArm);
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), new THREE.MeshBasicMaterial({color: 0xef4444}));
+  eye.position.set(0.08, 0.15 + 0.78, 0.14); group.add(eye);
+  const eye2 = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), new THREE.MeshBasicMaterial({color: 0xef4444}));
+  eye2.position.set(-0.08, 0.15 + 0.78, 0.14); group.add(eye2);
+  return group;
+}
+
+function createPortal() {
+  const group = new THREE.Group();
+  const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+  base.position.y = 0.075; base.castShadow = true; group.add(base);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.08, 8, 16), new THREE.MeshStandardMaterial({color: 0xa855f7, emissive: 0xa855f7, emissiveIntensity: 0.5}));
+  ring.position.y = 0.15 + 0.3; ring.rotation.x = Math.PI / 2; group.add(ring);
+  const inner = new THREE.Mesh(new THREE.CircleGeometry(0.44, 16), new THREE.MeshBasicMaterial({color: 0x7c3aed, transparent: true, opacity: 0.7}));
+  inner.position.y = 0.15 + 0.3; inner.rotation.x = -Math.PI / 2; group.add(inner);
+  const glow = new THREE.PointLight(0xa855f7, 2, 5);
+  glow.position.y = 0.6; group.add(glow);
+  return group;
+}
+
 function createRubble() {
   const group = new THREE.Group();
   const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
@@ -2132,20 +2376,6 @@ function createRuinedEnclave() {
     baseGroup.position.set(Math.cos(ang) * rad, 0, Math.sin(ang) * rad);
     group.add(baseGroup);
   }
-  return group;
-}
-
-function createIronCoffre() {
-  const group = new THREE.Group();
-  const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
-  base.position.y = 0.075; base.castShadow = true; group.add(base);
-  const box = new THREE.Mesh(
-    new THREE.BoxGeometry(0.7, 0.45, 0.45), 
-    brightGoldMat
-  );
-  box.position.y = 0.15 + 0.225; box.castShadow = true; group.add(box);
-  const lock = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.49), radiantSilverMat);
-  lock.position.set(0, 0.15 + 0.225, 0); group.add(lock);
   return group;
 }
 
@@ -2430,9 +2660,16 @@ function onEnemySlain(enemy, isMelee) {
   enemy.mesh.visible = false;
   worldContainer.remove(enemy.mesh);
   disposeMesh(enemy.mesh);
-  const grave = createHeadstone(); worldContainer.add(grave);
-  place(grave, enemy.q, enemy.r);
   if (enemy._light) worldContainer.remove(enemy._light);
+  if (enemy.faction === 'human' || enemy.type === "Freed Prisoner") {
+    const grave = createHeadstone(); worldContainer.add(grave);
+    place(grave, enemy.q, enemy.r);
+    headstones.push({ q: enemy.q, r: enemy.r, mesh: grave, looted: false });
+  } else {
+    const corpse = createCorpse(); worldContainer.add(corpse);
+    place(corpse, enemy.q, enemy.r);
+    corpses.push({ q: enemy.q, r: enemy.r, mesh: corpse, looted: false });
+  }
   const g = enemy.isBoss ? 120 : (isMelee ? 35 : 18);
   const a = enemy.isBoss ? 5 : (isMelee ? 1 : 0);
   const s = enemy.isBoss ? 100 : (isMelee ? 25 : 20);
@@ -2448,8 +2685,28 @@ function onEnemySlain(enemy, isMelee) {
     tryLoot(0.3);
   }
   if (enemy.isBoss) {
-    log(`<span style="color:#fbbf24;">The Undying Tyrant has been slain! Victory is yours. The darkness recedes.</span>`);
-    dropBossChest(enemy.q, enemy.r);
+    state.shillings += 80;
+    state.inventory.push("Tyrant's Void Relic");
+    tryLoot(1.0);
+    log(`<span style="color:#d946ef;">The Undying Tyrant has been slain! Victory is yours. +200 shillings & Tyrant's Void Relic acquired!</span>`);
+    SoundSystem.playLevelUp();
+    if (currentMapCoords.chapter < 6) {
+      const nextChapter = currentMapCoords.chapter + 1;
+      const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]];
+      for (const [dq, dr] of dirs) {
+        const pq = enemy.q + dq, pr = enemy.r + dr;
+        const occ = enemies.some(e => e.hp > 0 && e.q === pq && e.r === pr) || (state.q === pq && state.r === pr);
+        const tile = tileLookup.get(`${pq},${pr}`);
+        if (tile && !isWaterBiome(tile.userData.biomeKey) && !occ && HexUtils.isValid(pq, pr)) {
+          const pMesh = createPortal();
+          worldContainer.add(pMesh);
+          place(pMesh, pq, pr);
+          portals.push({ q: pq, r: pr, mesh: pMesh, targetChapter: nextChapter });
+          log(`<span style="color:#a855f7;">A shimmering portal tears open! Step through to ${CHAPTER_NAMES[nextChapter]}.</span>`);
+          break;
+        }
+      }
+    }
   }
   checkBossSpawn();
 }
@@ -2483,32 +2740,6 @@ function spawnBoss() {
   triggerCameraShake(1.2);
 }
 
-function dropBossChest(q, r) {
-  const group = new THREE.Group();
-  const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
-  base.position.y = 0.075; base.castShadow = true; group.add(base);
-  const box = new THREE.Mesh(
-    new THREE.BoxGeometry(0.8, 0.52, 0.52),
-    brightGoldMat
-  );
-  box.position.y = 0.15 + 0.26; box.castShadow = true; group.add(box);
-  for (const xOff of [-0.28, 0, 0.28]) {
-    const band = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.55, 0.54), radiantSilverMat);
-    band.position.set(xOff, 0.15 + 0.26, 0); group.add(band);
-  }
-  const lock = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.24, 0.55), radiantSilverMat);
-  lock.position.set(0, 0.15 + 0.26, 0); group.add(lock);
-  const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.1, 0), bossGlowMat);
-  gem.position.set(0, 0.15 + 0.6, 0); group.add(gem);
-  const chestLight = new THREE.PointLight(0xd946ef, 3, 6);
-  chestLight.position.set(0, 1, 0); group.add(chestLight);
-  worldContainer.add(group);
-  place(group, q, r);
-  const t = { q, r, mesh: group, taken: false, isBossChest: true };
-  treasures.push(t);
-  log(`<span style="color:#d946ef;">The Tyrant's Reliquary crashes to the ground — claim it!</span>`);
-}
-
 let processingTurn = false;
 
 let spell = null;
@@ -2523,6 +2754,202 @@ function castFleshMend() {
   SoundSystem.playHeal(); updateUI();
 }
 
+// --- MAP TRAVEL ---
+let pendingTravelKey = null;
+let pendingTravelDir = null;
+
+function promptTravel(targetKey, dq, dr) {
+  const popup = document.getElementById("travel-popup");
+  const nameEl = document.getElementById("travel-map-name");
+  // Parse target coords
+  const parts = targetKey.split("_");
+  const coordsStr = parts[1] || "[?,?]";
+  nameEl.textContent = `${CHAPTER_NAMES[currentMapCoords.chapter]} ${coordsStr}`;
+  pendingTravelKey = targetKey;
+  pendingTravelDir = [dq, dr];
+  popup.style.display = "flex";
+}
+
+document.getElementById("travel-btn-yes").addEventListener("click", () => {
+  document.getElementById("travel-popup").style.display = "none";
+  if (pendingTravelKey) {
+    travelTo(pendingTravelKey, pendingTravelDir[0], pendingTravelDir[1]);
+  }
+  pendingTravelKey = null;
+  pendingTravelDir = null;
+});
+
+document.getElementById("travel-btn-no").addEventListener("click", () => {
+  document.getElementById("travel-popup").style.display = "none";
+  pendingTravelKey = null;
+  pendingTravelDir = null;
+});
+
+function checkEdgeNeighbors() {
+  availableTravelDirs = [];
+  const dirs = [[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]];
+  for (const [dq, dr] of dirs) {
+    const nq = state.q + dq;
+    const nr = state.r + dr;
+    const tileData = tileLookup.get(`${nq},${nr}`);
+    if (tileData) {
+      const ndist = HexUtils.dist(0, 0, nq, nr);
+      const isEdge = ndist > R * 0.4 || Math.abs(nq) >= R - 2 || Math.abs(nr) >= R - 2 || Math.abs(-nq-nr) >= R - 2;
+      if (!isPassableBiome(tileData.userData.biomeKey) && isEdge) {
+        availableTravelDirs.push({ dq, dr });
+      }
+    }
+  }
+}
+
+function travelTo(targetKey, dq, dr) {
+  if (processingTurn || state.hp <= 0) return;
+  
+  // Save current map state and connect to target
+  saveCurrentMapToCache();
+  const curSnap = mapCache.get(currentMapKey);
+  if (curSnap) curSnap.connectTo(dq, dr, targetKey);
+  
+  // Parse target key
+  const match = targetKey.match(/^ch(\d+)_\[(-?\d+),(-?\d+)\]$/);
+  if (!match) { log("Travel error: invalid map key."); return; }
+  const tChapter = parseInt(match[1]);
+  const tX = parseInt(match[2]);
+  const tY = parseInt(match[3]);
+  
+  const prevKey = currentMapKey;
+  
+  // Check cache first
+  const cachedSnap = loadMapFromCache(targetKey);
+  
+  // Generate (or regenerate) the target map
+  generateWorld(tChapter, tX, tY);
+  
+  // Place hero at entrance edge — walk inward from map boundary to find the first passable tile
+  let foundPos = null;
+  for (let step = 0; step < R - 1; step++) {
+    const eq = -dq * (R - 2 - step);
+    const er = -dr * (R - 2 - step);
+    const tile = tileLookup.get(`${eq},${er}`);
+    if (tile && isPassableBiome(tile.userData.biomeKey)) {
+      foundPos = { q: eq, r: er, tile };
+      break;
+    }
+  }
+  if (foundPos) {
+    state.q = foundPos.q;
+    state.r = foundPos.r;
+    hero.position.x = foundPos.tile.position.x;
+    hero.position.z = foundPos.tile.position.z;
+    hero.position.y = foundPos.tile.position.y + 25;
+    hero.userData.targetY = foundPos.tile.position.y;
+    hero.userData.isSpawning = true;
+    state.ap = state.maxAp;
+  } else {
+    state.q = 0; state.r = 0;
+    const centerTile = tileLookup.get("0,0");
+    if (centerTile) {
+      hero.position.x = centerTile.position.x;
+      hero.position.z = centerTile.position.z;
+      hero.position.y = centerTile.position.y + 25;
+      hero.userData.targetY = centerTile.position.y;
+      hero.userData.isSpawning = true;
+    }
+  }
+  
+  // Create/update the target map snapshot with bidirectional connection
+  saveCurrentMapToCache();
+  const newSnap = mapCache.get(currentMapKey);
+  if (newSnap) newSnap.connectTo(-dq, -dr, prevKey);
+  
+  // Restore cached state if this is a revisit
+  if (cachedSnap) {
+    state.turn = cachedSnap.turn;
+    
+    cachedSnap.enemies.forEach(ed => {
+      const existing = enemies.find(e => e.type === ed.type && e.q === ed.q && e.r === ed.r);
+      if (existing) {
+        existing.hp = ed.hp;
+        if (ed.hp <= 0) {
+          existing.mesh.visible = false;
+          worldContainer.remove(existing.mesh);
+        }
+      }
+    });
+    cachedSnap.allies.forEach(ad => {
+      const existing = allies.find(a => a.type === ad.type && a.q === ad.q && a.r === ad.r);
+      if (existing) {
+        existing.hp = ad.hp;
+        if (ad.hp <= 0) {
+          existing.mesh.visible = false;
+          worldContainer.remove(existing.mesh);
+        }
+      }
+    });
+    headstones.forEach(h => {
+      if (!cachedSnap.headstones.some(hs => hs.q === h.q && hs.r === h.r)) {
+        h.looted = true;
+        h.mesh.visible = false;
+      }
+    });
+    corpses.forEach(c => {
+      if (!cachedSnap.corpses.some(cs => cs.q === c.q && cs.r === c.r)) {
+        c.looted = true;
+        c.mesh.visible = false;
+      }
+    });
+    cachedSnap.portals.forEach(pd => {
+      if (!portals.some(p => p.q === pd.q && p.r === pd.r)) {
+        const pMesh = createPortal();
+        worldContainer.add(pMesh);
+        place(pMesh, pd.q, pd.r);
+        portals.push({ q: pd.q, r: pd.r, mesh: pMesh, targetChapter: pd.targetChapter });
+      }
+    });
+    cachedSnap.churches.forEach(cs => {
+      const existing = churches.find(c => c.q === cs.q && c.r === cs.r);
+      if (existing) existing.hp = cs.hp;
+    });
+    cachedSnap.prisons.forEach(ps => {
+      const existing = prisons.find(p => p.q === ps.q && p.r === ps.r);
+      if (existing) existing.hp = ps.hp;
+    });
+  }
+  
+  log(`<span style="color:#fbbf24;">You travel to ${CHAPTER_NAMES[tChapter]} [${tX},${tY}].</span>`);
+  updateUI();
+}
+
+function teleportViaPortal(targetChapter) {
+  saveCurrentMapToCache();
+  mapCache.clear();
+  const chapter = parseInt(targetChapter);
+  const palettes = {
+    "2": { msg: "Chronicle II: Obsidian Tides", sun: 1.2, amb: 0.3, colors: { grass: {r:15,g:23,b:42}, river: {r:14,g:165,b:233}, lake: {r:14,g:165,b:233}, deepWater: {r:8,g:47,b:73}, shallowWater: {r:12,g:74,b:110}, silt: {r:2,g:6,b:23}, crag: {r:30,g:41,b:59}, uiBg: {r:2,g:6,b:12}, uiAccent: {r:37,g:99,b:235} } },
+    "3": { msg: "Chronicle III: The Gilded Blight", sun: 3.5, amb: 0.8, colors: { grass: {r:120,g:113,b:108}, river: {r:234,g:179,b:8}, lake: {r:234,g:179,b:8}, deepWater: {r:113,g:63,b:18}, shallowWater: {r:202,g:138,b:4}, silt: {r:214,g:158,b:46}, crag: {r:251,g:191,b:36}, uiBg: {r:28,g:25,b:23}, uiAccent: {r:234,g:179,b:8} } },
+    "4": { msg: "Chronicle IV: Echoes of Aether", sun: 2.0, amb: 0.5, colors: { grass: {r:168,g:85,b:247}, river: {r:192,g:38,b:211}, lake: {r:192,g:38,b:211}, deepWater: {r:15,g:23,b:42}, shallowWater: {r:67,g:56,b:202}, silt: {r:30,g:58,b:138}, crag: {r:6,g:182,b:212}, uiBg: {r:10,g:10,b:30}, uiAccent: {r:168,g:85,b:247} } },
+    "5": { msg: "Chronicle V: The Crimson Citadel", sun: 1.5, amb: 0.2, colors: { grass: {r:69,g:10,b:10}, river: {r:220,g:38,b:38}, lake: {r:220,g:38,b:38}, deepWater: {r:0,g:0,b:0}, shallowWater: {r:127,g:29,b:29}, silt: {r:24,g:24,b:27}, crag: {r:153,g:27,b:27}, uiBg: {r:15,g:0,b:0}, uiAccent: {r:220,g:38,b:38} } },
+    "6": { msg: "Chronicle VI: Final Ember", sun: 4.0, amb: 0.1, colors: { grass: {r:24,g:24,b:27}, river: {r:249,g:115,b:22}, lake: {r:249,g:115,b:22}, deepWater: {r:30,g:41,b:59}, shallowWater: {r:124,g:45,b:18}, silt: {r:9,g:9,b:11}, crag: {r:69,g:10,b:10}, uiBg: {r:5,g:5,b:5}, uiAccent: {r:249,g:115,b:22} } }
+  };
+  const p = palettes[chapter];
+  if (p) {
+    log(`<span style="color:#fff;">${p.msg} — The reality shifts.</span>`);
+    Object.assign(activeColors, p.colors);
+    Object.keys(activeColors).forEach(key => applyDynamicColors(key));
+    sunkey.intensity = p.sun;
+    ambient.intensity = p.amb;
+  }
+  currentMapKey = mapKey(chapter, 0, 0);
+  currentMapCoords = { chapter, x: 0, y: 0 };
+  generateWorld(chapter, 0, 0);
+  updateMapCoordsDisplay();
+  state.ap = state.maxAp;
+  state.q = 0; state.r = 0;
+  document.getElementById("chapter-select").value = chapter;
+  log(`<span style="color:#a855f7;">You step through the portal into ${CHAPTER_NAMES[chapter]}.</span>`);
+  updateUI();
+}
+
 async function processTurnAdvance() {
   if (state.hp <= 0 || processingTurn) return;
   processingTurn = true;
@@ -2532,7 +2959,7 @@ async function processTurnAdvance() {
   state.ap = state.maxAp;
   const newDay = Math.floor((state.turn - 1) / 2) + 1;
   if (newDay !== prevDay) {
-    log(`<div style='color:#fca5a5; font-size:11px; margin-top:8px; font-family:var(--font-serif); letter-spacing:1px;'><b>Day ${newDay} begins.</b></div>`);
+    log(`<div style='color:#fca5a5; font-size:11px; margin-top:8px; font-family:var(--font-serif); letter-spacing:1px;'><b>Day ${newDay}</b></div>`);
   }
   log(`<b style="color:#fff; font-size:11px; margin-top:8px; display:block;">Turn ${state.turn}</b>`);
   log("<div style='color:#fb923c; margin-top:6px;'>[ Horrors re-orient themselves ]</div>");
@@ -2617,6 +3044,31 @@ async function processTurnAdvance() {
     }
   }
 
+  // 5. Zombies rising from corpses (5% chance per turn per corpse)
+  for (let i = corpses.length - 1; i >= 0; i--) {
+    const corpse = corpses[i];
+    if (corpse.looted) continue;
+    if (Math.random() < 0.05 && getEnemyCount('common') < SPAWN_LIMITS.common) {
+      const nq = corpse.q, nr = corpse.r;
+      const occupied = enemies.some(e => e.hp > 0 && e.q === nq && e.r === nr) || (state.q === nq && state.r === nr);
+      if (!occupied && HexUtils.isValid(nq, nr)) {
+        worldContainer.remove(corpse.mesh);
+        disposeMesh(corpse.mesh);
+        corpses.splice(i, 1);
+        const zMesh = createZombie();
+        worldContainer.add(zMesh);
+        place(zMesh, nq, nr);
+        enemies.push({
+          type: "Zombie", q: nq, r: nr,
+          hp: 20, maxHp: 20, atk: 7, range: 1,
+          mesh: zMesh, faction: 'undead', maxAp: 2, aggroRange: 6
+        });
+        log(`<span style='color:#6b7280;'>A Zombie claws its way from a corpse!</span>`);
+        break;
+      }
+    }
+  }
+
   // Initialize Enemy AP for the new phase
   enemies.forEach(e => { if (e.hp > 0) e.ap = e.maxAp || 2; });
   prisons.forEach(p => { p.ap = 1; });
@@ -2646,8 +3098,15 @@ async function processTurnAdvance() {
         target.mesh.visible = false;
         worldContainer.remove(target.mesh);
         disposeMesh(target.mesh);
-        const grave = createHeadstone(); worldContainer.add(grave);
-        place(grave, target.q, target.r);
+        if (target.faction === 'human' || target.type === "Freed Prisoner") {
+          const grave = createHeadstone(); worldContainer.add(grave);
+          place(grave, target.q, target.r);
+          headstones.push({ q: target.q, r: target.r, mesh: grave, looted: false });
+        } else {
+          const corpse = createCorpse(); worldContainer.add(corpse);
+          place(corpse, target.q, target.r);
+          corpses.push({ q: target.q, r: target.r, mesh: corpse, looted: false });
+        }
         log(`${target.type} was vanquished by an ally!`);
       }
     } else { // Move towards target
@@ -2699,7 +3158,7 @@ async function processTurnAdvance() {
       const potentialTargets = [
         {...state, type: "Player", mesh: hero, isPlayer: true}, // Always target player
         ...allies.filter(a => a.hp > 0), // Target active allies
-        ...enemies.filter(e => e.hp > 0 && e.faction !== enemy.faction && e.faction !== 'neutral') // Target opposing faction enemies
+        ...enemies.filter(e => e.hp > 0 && e.faction !== enemy.faction && e.faction !== 'neutral' && !(enemy.faction === 'undead' && e.faction === 'supernatural') && !(enemy.faction === 'supernatural' && e.faction === 'undead')) // Target opposing faction enemies (undead & supernatural are not hostile)
       ];
 
       let target = null;
@@ -2741,10 +3200,30 @@ async function processTurnAdvance() {
           target.mesh.visible = false; 
           worldContainer.remove(target.mesh);
           disposeMesh(target.mesh);
-          const grave = createHeadstone(); worldContainer.add(grave);
-          place(grave, target.q, target.r);
-          const message = allies.includes(target) ? `An ally ${target.type} has fallen!` : `${target.type} was slain by ${enemy.type}!`;
-          log(message);
+          if (enemy.type === "Zombie" && (target.faction === 'human' || target.type === "Freed Prisoner")) {
+            const zMesh = createZombie();
+            worldContainer.add(zMesh);
+            place(zMesh, target.q, target.r);
+            enemies.push({
+              type: "Zombie", q: target.q, r: target.r,
+              hp: 20, maxHp: 20, atk: 7, range: 1,
+              mesh: zMesh, faction: 'undead', maxAp: 2, aggroRange: 6
+            });
+            const msg = allies.includes(target) ? `An ally ${target.type} has fallen and risen as a Zombie!` : `${target.type} was slain and rises as a Zombie!`;
+            log(msg);
+          } else if (target.faction === 'human' || target.type === "Freed Prisoner") {
+            const grave = createHeadstone(); worldContainer.add(grave);
+            place(grave, target.q, target.r);
+            headstones.push({ q: target.q, r: target.r, mesh: grave, looted: false });
+            const message = allies.includes(target) ? `An ally ${target.type} has fallen!` : `${target.type} was slain by ${enemy.type}!`;
+            log(message);
+          } else {
+            const corpse = createCorpse(); worldContainer.add(corpse);
+            place(corpse, target.q, target.r);
+            corpses.push({ q: target.q, r: target.r, mesh: corpse, looted: false });
+            const message = allies.includes(target) ? `An ally ${target.type} has fallen!` : `${target.type} was slain by ${enemy.type}!`;
+            log(message);
+          }
         }
       } else {
         const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]];
@@ -2825,6 +3304,7 @@ function selectSpell(spellName) {
 
 window.addEventListener("keydown", e => {
   if (!gameStarted) return;
+  if (document.getElementById("travel-popup").style.display === "flex") return;
   if(e.code === "Space") e.preventDefault();
   if(state.hp <= 0) return;
   if(e.key === "1") selectSpell("weapon strike");
@@ -2872,7 +3352,7 @@ panelHandle.addEventListener("mousedown", e => {
 
 
 document.getElementById("chapter-select").addEventListener("change", (e) => {
-  const chapter = e.target.value;
+  const chapter = parseInt(e.target.value);
   
   const palettes = {
     "1": { 
@@ -2908,13 +3388,20 @@ document.getElementById("chapter-select").addEventListener("change", (e) => {
   sunkey.intensity = p.sun;
   ambient.intensity = p.amb;
 
-  generateWorld(chapter);
+  // Clear map cache when switching chapters (new world)
+  mapCache.clear();
+  currentMapKey = mapKey(chapter, 0, 0);
+  currentMapCoords = { chapter, x: 0, y: 0 };
+  generateWorld(chapter, 0, 0);
+  updateMapCoordsDisplay();
+  state.q = 0; state.r = 0;
   updateUI();
 });
 
 const ray = new THREE.Raycaster(); const mouse = new THREE.Vector2();
 
 window.addEventListener("pointerdown", e => {
+  if (document.getElementById("travel-popup").style.display === "flex") return;
   if (e.target.closest('#ui-stack')) return;
   
   if (e.button === 1 || e.button === 2) {
@@ -3069,7 +3556,45 @@ window.addEventListener("pointerdown", e => {
     updateUI(); return;
   }
 
-  if(dist !== 1 || !isPassableBiome(hit.object.userData.biomeKey)) { log("Invalid pathing."); return; }
+  // Detect map-edge travel: click on edge water, or click in a direction that has an edge neighbor
+  let travelDir = null;
+  const clickDist = HexUtils.dist(0, 0, q, r);
+  const isMapEdge = clickDist > R * 0.4 || Math.abs(q) >= R - 2 || Math.abs(r) >= R - 2 || Math.abs(-q-r) >= R - 2;
+  // Check 1: clicked directly on a non-passable edge tile (any direction from hero position)
+  if (!isPassableBiome(hit.object.userData.biomeKey) && isMapEdge) {
+    const dq = q - state.q;
+    const dr = r - state.r;
+    if (Math.abs(dq) <= 5 && Math.abs(dr) <= 5 && Math.abs(-dq-dr) <= 5) {
+      travelDir = { dq, dr };
+    }
+  }
+  // Check 2: click direction matches a known edge-neighbor direction (hero is already at edge)
+  if (!travelDir && availableTravelDirs.length > 0) {
+    const dq = q - state.q;
+    const dr = r - state.r;
+    const hexDirs = [[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]];
+    let best = null, bestDot = -Infinity;
+    for (const [hdq, hdr] of hexDirs) {
+      const dot = dq*hdq + dr*hdr + (dq+dr)*(hdq+hdr);
+      if (dot > bestDot) { bestDot = dot; best = [hdq, hdr]; }
+    }
+    if (best && availableTravelDirs.some(d => d.dq === best[0] && d.dr === best[1])) {
+      travelDir = { dq: best[0], dr: best[1] };
+    }
+  }
+  if (travelDir) {
+    const currentSnap = mapCache.get(currentMapKey);
+    let targetKey = currentSnap ? currentSnap.getConnected(travelDir.dq, travelDir.dr) : null;
+    if (!targetKey) {
+      const nx = currentMapCoords.x + travelDir.dq;
+      const ny = currentMapCoords.y + travelDir.dr;
+      targetKey = mapKey(currentMapCoords.chapter, nx, ny);
+    }
+    promptTravel(targetKey, travelDir.dq, travelDir.dr);
+    return;
+  }
+
+  if (dist !== 1) { log("Invalid pathing."); return; }
   if (state.ap < 1) { log("Insufficient Action Points."); SoundSystem.playBuzzer(); return; }
   
   state.ap -= 1;
@@ -3091,22 +3616,45 @@ window.addEventListener("pointerdown", e => {
       }
     }
   });
-  treasures.forEach(t => { 
-    if(!t.taken && t.q === q && t.r === r){ 
-      t.taken = true; t.mesh.visible = false; 
-      const loot = t.isBossChest ? 80 : 22; 
-      state.shillings += loot; 
-      if(t.isBossChest){ 
-        state.inventory.push("Tyrant's Void Relic"); 
-        tryLoot(1.0); 
-        log(`<span style="color:#d946ef;">Reliquary opened! +80 shillings & Tyrant's Void Relic acquired!</span>`); 
-      } else {
-        log(`<span style='color:#fbbf24;'>Iron coffre scavenged! +${loot} shillings looted.</span>`); 
-        tryLoot(0.5); // Increased from 0.25
-      }
-      SoundSystem.playLevelUp(); 
+  headstones.forEach(h => {
+    if(!h.looted && h.q === q && h.r === r){
+      h.looted = true;
+      state.shillings += 22;
+      log(`<span style='color:#fbbf24;'>Grave scavenged! +22 shillings looted.</span>`);
+      tryLoot(0.5);
+      SoundSystem.playLevelUp();
     }
   });
+  corpses.forEach(c => {
+    if(!c.looted && c.q === q && c.r === r){
+      c.looted = true;
+      state.shillings += 22;
+      log(`<span style='color:#6b7280;'>Corpse scavenged! +22 shillings looted.</span>`);
+      tryLoot(0.3);
+      SoundSystem.playLevelUp();
+      if (Math.random() < 0.15) {
+        const occupied = enemies.some(e => e.hp > 0 && e.q === c.q && e.r === c.r) || (state.q === c.q && state.r === c.r);
+        if (!occupied && HexUtils.isValid(c.q, c.r)) {
+          const zMesh = createZombie();
+          worldContainer.add(zMesh);
+          place(zMesh, c.q, c.r);
+          enemies.push({
+            type: "Zombie", q: c.q, r: c.r,
+            hp: 20, maxHp: 20, atk: 7, range: 1,
+            mesh: zMesh, faction: 'undead', maxAp: 2, aggroRange: 6
+          });
+          log(`<span style='color:#6b7280;'>A Zombie erupts from the corpse!</span>`);
+        }
+      }
+    }
+  });
+  const portalHere = portals.find(p => p.q === state.q && p.r === state.r && p.targetChapter);
+  if (portalHere) {
+    teleportViaPortal(portalHere.targetChapter);
+    updateUI();
+    checkDeath();
+    return;
+  }
   updateUI();
   checkDeath();
 });
@@ -3139,16 +3687,19 @@ window.addEventListener("contextmenu", e => {
 });
 
 document.getElementById("start-game-btn").addEventListener("click", () => {
-  const seedInput = document.getElementById("seed-input");
-  pinnedWorldSeed = seedInput && seedInput.value.trim() ? seedInput.value.trim() : null;
+  if (!mapSeed) mapSeed = Math.floor(Math.random() * 1e9).toString(36);
   const ss = document.getElementById("start-screen");
   ss.classList.add("hidden");
   setTimeout(() => ss.style.display = "none", 600);
-  // Initialize and resume audio on first user gesture
   SoundSystem.init();
   if (SoundSystem.ctx) SoundSystem.ctx.resume();
   gameStarted = true;
-  generateWorld(1); updateUI();
+  currentMapKey = "ch1_[0,0]";
+  currentMapCoords = { chapter: 1, x: 0, y: 0 };
+  updateMapCoordsDisplay();
+  generateWorld(1, 0, 0); updateUI();
+  saveCurrentMapToCache();
+  log("<div style='color:#fca5a5; font-size:11px; font-family:var(--font-serif); letter-spacing:1px;'><b>Day 1</b></div>");
   log("<b style='color:#fff; font-size:11px;'>Turn 1</b>");
   log("You arrive in Forest Haven.");
 });
@@ -3205,6 +3756,7 @@ renderer.setAnimationLoop(() => {
       hero.userData.isSpawning = false;
       triggerCameraShake(0.2);
       SoundSystem.playDamage();
+      checkEdgeNeighbors();
     }
   }
 
@@ -3224,6 +3776,16 @@ renderer.setAnimationLoop(() => {
       hero.position.copy(hero.userData.targetPos);
       triggerCameraShake(0.2);
       SoundSystem.playDamage();
+      checkEdgeNeighbors();
+      if (availableTravelDirs.length > 0) {
+        const dir = availableTravelDirs[0];
+        const currentSnap = mapCache.get(currentMapKey);
+        let targetKey = currentSnap ? currentSnap.getConnected(dir.dq, dir.dr) : null;
+        if (!targetKey) {
+          targetKey = mapKey(currentMapCoords.chapter, currentMapCoords.x + dir.dq, currentMapCoords.y + dir.dr);
+        }
+        promptTravel(targetKey, dir.dq, dir.dr);
+      }
     }
   }
 
