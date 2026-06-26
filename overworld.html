@@ -119,7 +119,7 @@
     .stat-val {
       font-weight: bold;
       color: #ffffff;
-      font-family: monospace;
+      font-family: var(--font-serif);
       font-size: 13px;
     }
 
@@ -163,6 +163,18 @@
       color: #fca5a5;
     }
 
+    .action-btn.locked {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    .action-btn .lock-icon {
+      display: none;
+      font-size: 10px;
+    }
+    .action-btn.locked .lock-icon {
+      display: inline;
+    }
+
     .action-btn .cost {
       font-size: 9px;
       font-weight: bold;
@@ -172,7 +184,7 @@
     .action-btn .hotkey {
       font-size: 8px;
       color: #64748b;
-      font-family: monospace;
+      font-family: var(--font-serif);
     }
 
     .action-btn-end {
@@ -435,7 +447,7 @@
 
     .dmg-popup {
       position: absolute;
-      font-family: monospace;
+      font-family: var(--font-serif);
       font-weight: bold;
       font-size: 26px;
       pointer-events: none;
@@ -444,32 +456,6 @@
       transition: all 0.85s cubic-bezier(0.25, 1, 0.5, 1);
       opacity: 1;
       z-index: 100;
-    }
-
-    #targeting-indicator {
-      position: absolute;
-      top: 64px;
-      right: 24px;
-      background: rgba(0,0,0,0.85);
-      border: 1px solid var(--color-accent);
-      border-radius: 6px;
-      padding: 10px 16px;
-      color: #f87171;
-      font-family: var(--font-serif);
-      font-size: 13px;
-      letter-spacing: 1px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-      display: none;
-      align-items: center;
-      gap: 8px;
-      pointer-events: none;
-      animation: pulse 1.5s infinite ease-in-out;
-      z-index: 5;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 0.8; }
-      50% { opacity: 1; transform: scale(1.02); }
     }
 
     .settings-section-title {
@@ -498,6 +484,47 @@
       color: #f8fafc;
     }
 
+    .tab-bar {
+      display: flex;
+      gap: 3px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid rgba(220, 38, 38, 0.4);
+      padding-bottom: 6px;
+    }
+
+    .tab-btn {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--color-border);
+      color: #64748b;
+      font-family: var(--font-serif);
+      font-size: 16px;
+      width: 36px;
+      height: 32px;
+      padding: 0;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tab-btn:hover {
+      background: rgba(255,255,255,0.15);
+      color: #e2e8f0;
+      border-color: #475569;
+    }
+
+    .tab-btn.active {
+      background: rgba(220,38,38,0.15);
+      border-color: var(--color-accent);
+      color: #fca5a5;
+    }
+
+    .tab-content.hidden {
+      display: none;
+    }
+
     @media (max-width: 640px) {
       #ui-stack {
         left: 8px;
@@ -508,12 +535,6 @@
         gap: 2px;
       }
       .panel { padding: 12px; }
-      #targeting-indicator {
-        top: 12px;
-        right: 12px;
-        font-size: 11px;
-        padding: 6px 12px;
-      }
       #log {
         flex: 1;
         min-height: 0;
@@ -541,61 +562,129 @@
     </div>
   </div>
   <div id="ui-stack">
-    <div id="header-ui" class="panel">
-      <header>
-        <div style="height: 20px;"></div>
-      </header>
-      <div class="subtitle-container" style="margin-top: 8px;">
-        <select id="chapter-select" class="settings-select" style="width: 100%; border-color: rgba(220, 38, 38, 0.6); background: #0f172a; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: #f8fafc;">
-          <option value="1">I: Iron & Gloom</option>
-          <option value="2">II: Obsidian Tides</option>
-          <option value="3">III: The Gilded Blight</option>
-          <option value="4">IV: Echoes of Aether</option>
-          <option value="5">V: The Crimson Citadel</option>
-          <option value="6">VI: Final Ember</option>
-        </select>
-        <div id="map-coords-display" style="font-size: 9px; color: #64748b; margin-top: 6px; letter-spacing: 1px; font-family: monospace; text-align: center;"><span id="current-map-coords" style="color: #94a3b8;">I: Iron & Gloom [0,0]</span></div>
-      </div>
-    </div>
-
     <div id="hero-ui" class="panel">
-      <div class="stats-container">
-        <div class="settings-section-title" style="gap:6px;">Ash "The Black Knight"</div>
-        <div class="stat-row"><span>Actions:</span><span class="stat-val" style="color:#60a5fa;"><span id="ap">4</span> / <span id="map">4</span></span></div>
-        <div class="stat-row"><span>Health:</span><span class="stat-val" style="color:#10b981;"><span id="hp">100</span> / <span id="mhp">100</span></span></div>
-        <div class="stat-row"><span>Armor:</span><span class="stat-val" style="color:#94a3b8;"><span id="armor">0</span></span></div>
-        <div class="stat-row"><span>Satiation:</span><span class="stat-val" style="color:#fbbf24;"><span id="satiation">10</span> / 10</span></div>
-        <div class="stat-row"><span>Strength:</span><span class="stat-val" style="color:#dc2626;"><span id="str">7</span></span></div>
-        <div class="stat-row"><span>Wisdom:</span><span class="stat-val" style="color:#a78bfa;"><span id="wis">5</span></span></div>
-        <div class="stat-row"><span>Infamy:</span><span class="stat-val"><span id="xp">0</span></span></div>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="character">&#9822;</button>
+        <button class="tab-btn" data-tab="inventory">&#9921;</button>
+        <button class="tab-btn" data-tab="skills">&#9889;</button>
+        <button class="tab-btn" data-tab="codex">&#128214;</button>
+        <button class="tab-btn" data-tab="settings">&#9881;</button>
       </div>
-      <div id="inv"></div>
-      <div class="action-bar" style="margin-top: 8px;">
-        <button class="action-btn" id="btn-strike" data-spell="weapon strike">
-          <span style="color:#cbd5e1; font-weight:bold;">Weapon Strike</span>
-          <span class="cost">1 AP</span>
-          <span class="hotkey">[1]</span>
-        </button>
-        <button class="action-btn" id="btn-blood" data-spell="blood burst" style="display: none;">
-          <span style="color:#f87171; font-weight:bold;">Blood Burst</span>
-          <span class="cost">1 AP</span>
-          <span class="hotkey">[2]</span>
-        </button>
-        <button class="action-btn" id="btn-mend" data-spell="flesh mend" style="display: none;">
-          <span style="color:#34d399; font-weight:bold;">Flesh Mend</span>
-          <span class="cost">2 AP</span>
-          <span class="hotkey">[3]</span>
-        </button>
-        <button class="action-btn" id="btn-reap" data-spell="reaping bolt" style="display: none;">
-          <span style="color:#c084fc; font-weight:bold;">Reaping Bolt</span>
-          <span class="cost">2 AP</span>
-          <span class="hotkey">[4]</span>
-        </button>
-        <button class="action-btn" id="btn-swing" data-spell="melee swing">
-          <span style="color:#fb923c; font-weight:bold;">Melee Swing</span>
-          <span class="cost">1 AP</span>
-          <span class="hotkey">[5]</span>
-        </button>
+
+      <div class="tab-content" id="tab-character">
+        <div class="stats-container">
+          <div class="settings-section-title" style="gap:6px;"><span id="char-name-display">The Black Knight</span></div>
+          <div class="stat-row"><span>Infamy:</span><span class="stat-val"><span id="xp">0</span></span></div>
+          <div class="stat-row"><span>Actions:</span><span class="stat-val" style="color:#60a5fa;"><span id="ap">4</span> / <span id="map">4</span></span></div>
+          <div class="stat-row"><span>Satiation:</span><span class="stat-val" style="color:#fbbf24;"><span id="satiation">10</span> / 10</span></div>
+          <div class="stat-row"><span>Health:</span><span class="stat-val" style="color:#10b981;"><span id="hp">100</span> / <span id="mhp">100</span></span></div>
+          <div class="stat-row"><span>Armor:</span><span class="stat-val" style="color:#94a3b8;"><span id="armor">0</span></span></div>
+          <div class="stat-row"><span>Strength:</span><span class="stat-val" style="color:#dc2626;"><span id="str">7</span></span></div>
+          <div class="stat-row"><span>Wisdom:</span><span class="stat-val" style="color:#a78bfa;"><span id="wis">5</span></span></div>
+        </div>
+      </div>
+
+      <div class="tab-content hidden" id="tab-inventory">
+        <div id="inv"></div>
+      </div>
+
+      <div class="tab-content hidden" id="tab-skills">
+        <div class="action-bar" style="margin-top: 0px;">
+          <button class="action-btn" id="btn-swing" data-spell="melee swing">
+            <span class="lock-icon"></span>
+            <span class="skill-name" style="color:#fb923c; font-weight:bold;">Melee Swing</span>
+            <span class="cost">1 AP</span>
+            <span class="hotkey">[1]</span>
+          </button>
+          <button class="action-btn" id="btn-strike" data-spell="weapon strike">
+            <span class="lock-icon"></span>
+            <span class="skill-name" style="color:#cbd5e1; font-weight:bold;">Weapon Strike</span>
+            <span class="cost">1 AP</span>
+            <span class="hotkey">[2]</span>
+          </button>
+          <button class="action-btn" id="btn-fireball" data-spell="fireball">
+            <span class="lock-icon"></span>
+            <span class="skill-name" style="color:#f97316; font-weight:bold;">Fireball</span>
+            <span class="cost">1 AP</span>
+            <span class="hotkey">[3]</span>
+          </button>
+          <button class="action-btn" id="btn-mend" data-spell="flesh mend">
+            <span class="lock-icon"></span>
+            <span class="skill-name" style="color:#34d399; font-weight:bold;">Flesh Mend</span>
+            <span class="cost">2 AP</span>
+            <span class="hotkey">[4]</span>
+          </button>
+          <button class="action-btn" id="btn-souldrain" data-spell="soul drain">
+            <span class="lock-icon"></span>
+            <span class="skill-name" style="color:#c084fc; font-weight:bold;">Soul Drain</span>
+            <span class="cost">2 AP</span>
+            <span class="hotkey">[5]</span>
+          </button>
+          <button class="action-btn" id="btn-lightning" data-spell="lightning bolt">
+            <span class="lock-icon"></span>
+            <span class="skill-name" style="color:#fbbf24; font-weight:bold;">Lightning Bolt</span>
+            <span class="cost">2 AP</span>
+            <span class="hotkey">[6]</span>
+          </button>
+          <button class="action-btn" id="btn-teleport" data-spell="teleport">
+            <span class="lock-icon"></span>
+            <span class="skill-name" style="color:#818cf8; font-weight:bold;">Teleport</span>
+            <span class="cost">2 AP</span>
+            <span class="hotkey">[7]</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="tab-content hidden" id="tab-codex">
+        <div class="subtitle-container" style="margin-top: 0px;">
+          <select id="codex-select" class="settings-select" style="width:100%; border-color: rgba(220,38,38,0.6); background:#0f172a; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:#f8fafc;">
+            <option value="">— Select Entry —</option>
+            <optgroup label="— Characters —" style="color:#94a3b8;">
+              <option value="The Black Knight">The Black Knight</option>
+              <option value="Wretch">Wretch</option>
+              <option value="Husk">Husk</option>
+              <option value="Abomination">Abomination</option>
+              <option value="Gelatinous Cube">Gelatinous Cube</option>
+              <option value="Knight">Knight</option>
+              <option value="Priest">Priest</option>
+              <option value="Guard">Guard</option>
+              <option value="Ranger">Ranger</option>
+              <option value="TownFolk">TownFolk</option>
+              <option value="Catapult">Catapult</option>
+              <option value="Zombie">Zombie</option>
+              <option value="The Undying Tyrant">The Undying Tyrant</option>
+            </optgroup>
+            <optgroup label="— Structures —" style="color:#94a3b8;">
+              <option value="House">House</option>
+              <option value="Barn">Barn</option>
+              <option value="Church">Church</option>
+              <option value="Prison Cart">Prison Cart</option>
+              <option value="Ruined Enclave">Ruined Enclave</option>
+              <option value="Tree">Tree</option>
+              <option value="Crop">Crop</option>
+            </optgroup>
+          </select>
+          <div id="codex-preview" style="width:100%; height:170px; margin-top:6px; border:1px solid var(--color-border); border-radius:4px; overflow:hidden; background:#fff;"></div>
+          <div id="codex-info" style="margin-top:6px; font-size:13px; color:#94a3b8; text-align:center; letter-spacing:1px; font-family:var(--font-serif);"></div>
+        </div>
+      </div>
+
+      <div class="tab-content hidden" id="tab-settings">
+        <div class="subtitle-container" style="margin-top: 0px;">
+          <div style="display:flex; gap:4px; margin-bottom:6px;">
+            <input type="text" id="name-input" maxlength="24" style="flex:1; background:#1e293b; border:1px solid var(--color-border); border-radius:4px; color:#cbd5e1; font-family:var(--font-serif); font-size:11px; padding:6px 8px; outline:none;">
+            <button id="name-save-btn" class="action-btn" style="padding:6px 10px; font-size:10px; cursor:pointer;">Save</button>
+          </div>
+          <select id="chapter-select" class="settings-select" style="width: 100%; border-color: rgba(220, 38, 38, 0.6); background: #0f172a; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: #f8fafc;">
+            <option value="1">I: Iron & Gloom</option>
+            <option value="2">II: Obsidian Tides</option>
+            <option value="3">III: The Gilded Blight</option>
+            <option value="4">IV: Echoes of Aether</option>
+            <option value="5">V: The Crimson Citadel</option>
+            <option value="6">VI: Final Ember</option>
+          </select>
+          <div id="map-coords-display" style="font-size: 9px; color: #64748b; margin-top: 6px; letter-spacing: 1px; font-family: var(--font-serif); text-align: center;"><span id="current-map-coords" style="color: #94a3b8;">I: Iron & Gloom [0,0]</span></div>
+        </div>
       </div>
     </div>
 
@@ -615,10 +704,6 @@
     </div>
   </div>
 
-  <div id="targeting-indicator">
-    <span style="width: 8px; height: 8px; background: #dc2626; border-radius: 50%; display: inline-block;"></span>
-    <span id="targeting-text">Targeting Mode</span>
-  </div>
 
 <script type="module">
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js";
@@ -750,6 +835,7 @@ const activeColors = {
   house: { r: 107, g: 114, b: 128 },
   river: { r: 37, g: 99, b: 235 },
   dirt: { r: 120, g: 90, b: 70 },
+  tavern: { r: 180, g: 83, b: 9 },
   lake: { r: 37, g: 99, b: 235 },
   silver: { r: 241, g: 245, b: 249 }, 
   crimson: { r: 220, g: 38, b: 38 }, 
@@ -867,6 +953,7 @@ const tileLookup = new Map();
 // Defining these once prevents massive CPU/GPU churn during world generation
 const Geoms = {
   coneTree: new THREE.ConeGeometry(0.22, 1.1, 5),
+
   boxHouse: new THREE.BoxGeometry(0.75, 0.65, 0.75),
   coneRoof: new THREE.ConeGeometry(0.7, 0.5, 4),
   towerBody: new THREE.CylinderGeometry(0.32, 0.38, 1.2, 8),
@@ -884,9 +971,40 @@ const Geoms = {
   catapultWheel: new THREE.CylinderGeometry(0.25, 0.25, 0.1, 12),
   barnBody: new THREE.BoxGeometry(1.0, 0.8, 1.2),
   crop: new THREE.CylinderGeometry(0.04, 0.04, 0.6, 6),
-  barnRoof: new THREE.BoxGeometry(1.1, 0.4, 1.3)
+  tavernBody: new THREE.BoxGeometry(0.7, 0.7, 0.5),
+  tavernRoof: new THREE.ConeGeometry(0.5, 0.6, 4),
+  stableBody: new THREE.BoxGeometry(0.45, 0.4, 0.3),
+  stableRoof: new THREE.ConeGeometry(0.3, 0.35, 4),
+  barnDoorTrim: undefined,
+  swordGuard: new THREE.BoxGeometry(0.45, 0.05, 0.08),
+  swordHilt: new THREE.CylinderGeometry(0.04, 0.04, 0.3, 8),
+  unitArm: new THREE.CylinderGeometry(0.06, 0.08, 0.45, 8)
 };
 Geoms.shieldGeo.rotateX(Math.PI);
+
+const roofShape = new THREE.Shape();
+roofShape.moveTo(-0.6, -0.225);
+roofShape.lineTo(0.6, -0.225);
+roofShape.lineTo(0, 0.225);
+roofShape.closePath();
+Geoms.barnRoof = new THREE.ExtrudeGeometry(roofShape, { depth: 1.3, bevelEnabled: false });
+Geoms.barnRoof.translate(0, 0, -0.65);
+
+const dtShape = new THREE.Shape();
+dtShape.moveTo(-0.19, -0.275);
+dtShape.lineTo(0.19, -0.275);
+dtShape.lineTo(0.19, 0.275);
+dtShape.lineTo(-0.19, 0.275);
+dtShape.closePath();
+const dtHole = new THREE.Path();
+dtHole.moveTo(-0.16, -0.245);
+dtHole.lineTo(0.16, -0.245);
+dtHole.lineTo(0.16, 0.245);
+dtHole.lineTo(-0.16, 0.245);
+dtHole.closePath();
+dtShape.holes.push(dtHole);
+Geoms.barnDoorTrim = new THREE.ExtrudeGeometry(dtShape, { depth: 0.03, bevelEnabled: false });
+Geoms.barnDoorTrim.translate(0, 0, -0.015);
 
 const shape = new THREE.Shape();
 for(let i=0; i<6; i++){
@@ -1106,8 +1224,11 @@ function initMapRandom(chapter, mapX, mapY) {
 // --- PROP MATERIALS ---
 const keepStoneMat = new THREE.MeshStandardMaterial({color: 0x64748b, roughness: 0.7});
 const barnBodyMat = new THREE.MeshStandardMaterial({color: 0x991b1b, roughness: 0.7});
-const barnRoofMat = new THREE.MeshStandardMaterial({color: 0x334155});
+const barnRoofMat = new THREE.MeshStandardMaterial({color: 0x991b1b, roughness: 0.7});
+const barnDoorTrimMat = new THREE.MeshStandardMaterial({color: 0xf8fafc, roughness: 0.5});
 const cropMat = new THREE.MeshStandardMaterial({color: 0xeab308, roughness: 0.6});
+const tavernWallMat = new THREE.MeshStandardMaterial({color: 0xd97706, roughness: 0.7});
+const tavernRoofMat = new THREE.MeshStandardMaterial({color: 0x7c2d12, roughness: 0.6});
 
 // --- BIOME-SPECIFIC WEATHER SYSTEM ---
 class WeatherSystem {
@@ -1278,6 +1399,7 @@ const biomeMaterials = {
   RIVER:       new THREE.MeshStandardMaterial({ color: rgbToThreeColor(activeColors.river), roughness: 0.1, metalness: 0.3, vertexColors: false }),
   FARM:        new THREE.MeshStandardMaterial({ color: rgbToThreeColor(activeColors.silt), roughness: 0.9, vertexColors: false }),
   FIELD:       new THREE.MeshStandardMaterial({ color: rgbToThreeColor(activeColors.silt), roughness: 0.7, vertexColors: false }),
+  TAVERN:      new THREE.MeshStandardMaterial({ color: rgbToThreeColor(activeColors.dirt), roughness: 0.8, vertexColors: false }),
   LAKE:        new THREE.MeshStandardMaterial({ color: rgbToThreeColor(activeColors.river), roughness: 0.1, metalness: 0.5, vertexColors: false })
 };
 
@@ -1288,7 +1410,7 @@ let availableTravelDirs = [];
 const SPAWN_LIMITS = { common: 40, elite: 12, boss: 1 };
 function getEnemyCount(category) {
   if (category === 'elite') return enemies.filter(e => e.hp > 0 && (e.type === "Abomination" || e.type === "Catapult")).length;
-  if (category === 'common') return enemies.filter(e => e.hp > 0 && (e.type === "Wretch" || e.type === "Husk" || e.type === "Knight" || e.type === "Priest" || e.type === "Guard" || e.type === "Ranger" || e.type === "TownFolk" || e.type === "Zombie")).length;
+  if (category === 'common') return enemies.filter(e => e.hp > 0 && (e.type === "Wretch" || e.type === "Husk" || e.type === "Knight" || e.type === "Priest" || e.type === "Guard" || e.type === "Ranger" || e.type === "TownFolk" || e.type === "Zombie" || e.type === "Gelatinous Cube")).length;
   return enemies.filter(e => e.hp > 0 && e.isBoss).length;
 }
 
@@ -1328,7 +1450,7 @@ function generateWorld(chapter, mapX, mapY) {
 
       const isPooledMat = Object.values(biomeMaterials).includes(node.material) || 
                           Object.values(activeColors).includes(node.material) ||
-                          [unifiedBaseMat, foliageMat, woodMat, royalCrimsonMat, keepStoneMat, barnBodyMat, barnRoofMat, cropMat].includes(node.material);
+                          [unifiedBaseMat, foliageMat, woodMat, royalCrimsonMat, keepStoneMat, barnBodyMat, barnRoofMat, barnDoorTrimMat, cropMat].includes(node.material);
       if (node.material && !isPooledMat) {
         if (Array.isArray(node.material)) node.material.forEach(m => m.dispose());
         else node.material.dispose(); 
@@ -1349,14 +1471,48 @@ function generateWorld(chapter, mapX, mapY) {
            (Math.sin(qq * borderFreq * 2.3 + borderOffsetR) + Math.cos(qq * borderFreq * 2.3 + borderOffsetQ)) * (borderAmp * 0.45);
   };
 
-  // Randomize river parameters for procedural river systems
-  const rivAngle = seededRandom() * Math.PI * 2;
-  const rivCos = Math.cos(rivAngle);
-  const rivSin = Math.sin(rivAngle);
-  const rivFreq = 0.03 + seededRandom() * 0.03;
-  const rivAmp = 12 + seededRandom() * 8;
-  const rivOff = seededRandom() * 100;
+  // River type: 0 = no river, 1 = A-to-B river, 2 = Y-shaped river
+  const riverType = Math.floor(seededRandom() * 3);
   const rivWidth = HEX * 1.5;
+  let rivCos, rivSin, rivFreq, rivAmp, rivOff;
+  let riv2Cos, riv2Sin, riv2Freq, riv2Amp, riv2Off;
+  if (riverType === 0) {
+    rivCos = 0; rivSin = 0; rivFreq = 0; rivAmp = 0; rivOff = 0;
+    riv2Cos = 0; riv2Sin = 0; riv2Freq = 0; riv2Amp = 0; riv2Off = 0;
+  } else {
+    const rivAngle = seededRandom() * Math.PI * 2;
+    rivCos = Math.cos(rivAngle);
+    rivSin = Math.sin(rivAngle);
+    rivFreq = 0.03 + seededRandom() * 0.03;
+    rivAmp = 12 + seededRandom() * 8;
+    rivOff = seededRandom() * 100;
+    if (riverType === 2) {
+      const riv2Angle = rivAngle + 0.4 + seededRandom() * 0.6;
+      riv2Cos = Math.cos(riv2Angle);
+      riv2Sin = Math.sin(riv2Angle);
+      riv2Freq = 0.03 + seededRandom() * 0.03;
+      riv2Amp = 10 + seededRandom() * 8;
+      riv2Off = seededRandom() * 100;
+    }
+  }
+
+  // Terrain type: 0 = plains, 1 = hills, 2 = mountain, 3 = canyon
+  const terrainType = Math.floor(seededRandom() * 4);
+  const tParams = [
+    { amp: 0.5, freq: 0.18, octaves: 2, base: 0.4 },
+    { amp: 1.4, freq: 0.22, octaves: 3, base: 0.6 },
+    { amp: 3.0, freq: 0.14, octaves: 4, base: 0.8 },
+    { amp: 1.6, freq: 0.26, octaves: 3, base: 0.6 }
+  ];
+  const tp = tParams[terrainType];
+  let canyonCos, canyonSin, canyonFreq, canyonOff;
+  if (terrainType === 3) {
+    const canyonAngle = seededRandom() * Math.PI * 2;
+    canyonCos = Math.cos(canyonAngle);
+    canyonSin = Math.sin(canyonAngle);
+    canyonFreq = 0.015 + seededRandom() * 0.01;
+    canyonOff = seededRandom() * 100;
+  }
 
   // Procedurally determine building locations
   const encPos = [], churchPos = [], prisonPos = [];
@@ -1502,6 +1658,25 @@ function generateWorld(chapter, mapX, mapY) {
     if (distFromTown > 9 && (dDist + eNoise) <= R - 6) farmSeeds.push([fq, fr]);
   }
 
+  // 1-2 taverns per map, placed away from towns and other buildings
+  const tavernPos = [];
+  const tavernTarget = 1 + Math.floor(seededRandom() * 2);
+  const occupiedBuildings = encPos.concat(churchPos, prisonPos);
+  let tavernAttempts = 0;
+  while (tavernPos.length < tavernTarget && tavernAttempts < 500) {
+    tavernAttempts++;
+    let tq = Math.floor(seededRandom() * (R * 2)) - R;
+    let tr = Math.floor(seededRandom() * (R * 2)) - R;
+    if (!HexUtils.isValid(tq, tr)) continue;
+    const distFromTown = townBuildings.reduce((min, p) => Math.min(min, HexUtils.dist(tq, tr, p[0], p[1])), 999);
+    if (distFromTown <= 10) continue;
+    if (tavernPos.some(p => HexUtils.dist(tq, tr, p[0], p[1]) < 8)) continue;
+    if (occupiedBuildings.some(p => p[0] === tq && p[1] === tr)) continue;
+    const dDist = (Math.abs(tq) + Math.abs(tr) + Math.abs(-tq-tr)) / 2;
+    const eNoise = getShoreNoise(tq, tr);
+    if (ch === 4 || (dDist + eNoise) <= R - 4.5) tavernPos.push([tq, tr]);
+  }
+
   for(let q=-R; q<=R; q++){
     for(let r=-R; r<=R; r++){
       if(Math.abs(-q-r)>R) continue;
@@ -1515,17 +1690,27 @@ function generateWorld(chapter, mapX, mapY) {
       const isEnclavePos = encPos.some(p => p[0] === q && p[1] === r);
       const isChurchPos = churchPos.some(p => p[0] === q && p[1] === r);
       const isPrisonPos = prisonPos.some(p => p[0] === q && p[1] === r);
+      const isTavernPos = tavernPos.some(p => p[0] === q && p[1] === r);
       const isSettlementPos = isEnclavePos || isChurchPos;
       const isBuildingPos = isSettlementPos || isPrisonPos;
       const roll = seededRandom();
       let biomeKey = "DEAD_SCRUB";
 
       // Procedural river calculation using world coordinates for guaranteed connectivity
-      const worldP = HexUtils.toWorld(q, r);
-      const proj = worldP.x * rivCos + worldP.z * rivSin;
-      const perp = -worldP.x * rivSin + worldP.z * rivCos;
-      const riverVal = perp + Math.sin(proj * rivFreq + rivOff) * rivAmp;
-      let isRiver = Math.abs(riverVal) < rivWidth;
+      let isRiver = false;
+      if (riverType !== 0) {
+        const worldP = HexUtils.toWorld(q, r);
+        const proj = worldP.x * rivCos + worldP.z * rivSin;
+        const perp = -worldP.x * rivSin + worldP.z * rivCos;
+        const riverVal = perp + Math.sin(proj * rivFreq + rivOff) * rivAmp;
+        isRiver = Math.abs(riverVal) < rivWidth;
+        if (!isRiver && riverType === 2) {
+          const proj2 = worldP.x * riv2Cos + worldP.z * riv2Sin;
+          const perp2 = -worldP.x * riv2Sin + worldP.z * riv2Cos;
+          const riverVal2 = perp2 + Math.sin(proj2 * riv2Freq + riv2Off) * riv2Amp;
+          isRiver = Math.abs(riverVal2) < rivWidth;
+        }
+      }
 
       // Global Edge/Shoreline logic (Land -> Silt -> Water)
       // Exclude Chapter 4 (Void) to maintain its floating island aesthetic
@@ -1533,8 +1718,8 @@ function generateWorld(chapter, mapX, mapY) {
       else if (ch !== 4 && effectiveDist > R - 4.5) biomeKey = "SILT";
       else if (ch === 1) { // Iron & Gloom (Standard)
         if (isRiver) biomeKey = "RIVER";
-        else if (roll < 0.15) biomeKey = "CRAG";
-        else if (roll < 0.30) biomeKey = "DIRT";
+        else if (roll < 0.05) biomeKey = "CRAG";
+        else if (roll < 0.35) biomeKey = "DIRT";
         else if (roll < 0.55) biomeKey = "BUSH_TWIST";
       } else if (ch === 2) { // Obsidian Tides (Volcanic/Dark)
         if (isRiver || roll < 0.1) biomeKey = "RIVER";
@@ -1560,7 +1745,7 @@ function generateWorld(chapter, mapX, mapY) {
       }
 
       // Towns and churches sit on grey building hexes; prison carts keep the underlying terrain color
-      if (isSettlementPos) biomeKey = "HOUSE";
+      if (isSettlementPos && !isWaterBiome(biomeKey)) biomeKey = "HOUSE";
 
       // Biasing HOUSE tiles to appear only near main town centers (Enclaves/Churches)
       const distToTown = townBuildings.length > 0 ? townBuildings.reduce((min, p) => Math.min(min, HexUtils.dist(q, r, p[0], p[1])), 999) : 999;
@@ -1569,12 +1754,15 @@ function generateWorld(chapter, mapX, mapY) {
       // Apply Farm and Field logic based on distance from Rural Seeds
       const distToFarmSeed = farmSeeds.length > 0 ? farmSeeds.reduce((min, p) => Math.min(min, HexUtils.dist(q, r, p[0], p[1])), 999) : 999;
       if (!isBuildingPos && !isWaterBiome(biomeKey) && distToFarmSeed === 0) biomeKey = "FARM";
-      else if (!isBuildingPos && !isWaterBiome(biomeKey) && distToFarmSeed <= 2 && roll < 0.7) biomeKey = "FIELD";
+      else if (!isBuildingPos && !isWaterBiome(biomeKey) && distToFarmSeed > 0 && distToFarmSeed <= 4 && roll < 0.8) biomeKey = "FIELD";
       
-      // Single contiguous lake logic (No outliers)
-      if (lakeSeed && !isBuildingPos && biomeKey !== "DEEP_WATER" && HexUtils.dist(q, r, lakeSeed[0], lakeSeed[1]) <= lakeRadius) biomeKey = "LAKE";
+      // Tavern hex overrides all non-water biomes
+      if (isTavernPos && !isWaterBiome(biomeKey)) biomeKey = "TAVERN";
 
-      if (!isBuildingPos && roll < houseChance && !isWaterBiome(biomeKey)) biomeKey = "HOUSE";
+      // Single contiguous lake logic (No outliers)
+      if (lakeSeed && !isBuildingPos && biomeKey !== "DEEP_WATER" && biomeKey !== "TAVERN" && HexUtils.dist(q, r, lakeSeed[0], lakeSeed[1]) <= lakeRadius) biomeKey = "LAKE";
+
+      if (!isBuildingPos && biomeKey !== "TAVERN" && roll < houseChance && !isWaterBiome(biomeKey)) biomeKey = "HOUSE";
 
       const tile = new THREE.Mesh(geo, biomeMaterials[biomeKey]);
       const p = HexUtils.toWorld(q,r);
@@ -1587,9 +1775,22 @@ function generateWorld(chapter, mapX, mapY) {
         else if (biomeKey === "SHALLOW_WATER") tileY = -0.6;
         else tileY = -0.8; // Rivers and Havens
       } else {
-        // Land height is now driven by coordinate-based noise for varied terrain elevation
-        const noiseH = (Math.sin(q * 0.22 + borderOffsetQ) + Math.cos(r * 0.22 + borderOffsetR)) * 1.3;
-        tileY = Math.max(0.1, noiseH + 0.7);
+        // Terrain height driven by multi-octave noise with per-map type variation
+        let noiseVal = 0;
+        for (let o = 0; o < tp.octaves; o++) {
+          const f = tp.freq * Math.pow(1.7, o);
+          const a = tp.amp * Math.pow(0.55, o);
+          noiseVal += (Math.sin(q * f + borderOffsetQ * (o + 1) * 0.5) + Math.cos(r * f + borderOffsetR * (o + 1) * 0.5)) * a;
+        }
+        if (terrainType === 3) {
+          const worldP = HexUtils.toWorld(q, r);
+          const proj = worldP.x * canyonCos + worldP.z * canyonSin;
+          const perp = -worldP.x * canyonSin + worldP.z * canyonCos;
+          const canyonVal = Math.abs(perp + Math.sin(proj * canyonFreq + canyonOff) * 14);
+          const carve = Math.max(0, 4.0 - canyonVal);
+          noiseVal -= carve * 2.5;
+        }
+        tileY = Math.max(0.1, noiseVal + tp.base);
       }
 
       tile.position.set(p.x, tileY, p.z);
@@ -1680,6 +1881,42 @@ function generateWorld(chapter, mapX, mapY) {
     biomeInstancedMeshes[bKey].mesh.instanceMatrix.needsUpdate = true;
   }
 
+  // --- FOREST CLUMPS ---
+  // Generate concentrated dense forest patches atop existing biomes
+  const forestClumps = new Set();
+  const clumpCount = 2 + Math.floor(seededRandom() * 4);
+  for (let c = 0; c < clumpCount; c++) {
+    const candidates = tiles.filter(t => {
+      const { q, r, biomeKey } = t.userData;
+      if (isWaterBiome(biomeKey)) return false;
+      if (biomeKey === "HOUSE" || biomeKey === "FARM" || biomeKey === "FIELD" || biomeKey === "TAVERN") return false;
+      if (churchPos.some(p => p[0] === q && p[1] === r)) return false;
+      if (encPos.some(p => p[0] === q && p[1] === r)) return false;
+      if (prisonPos.some(p => p[0] === q && p[1] === r)) return false;
+      return true;
+    });
+    if (candidates.length === 0) continue;
+    const seed = candidates[Math.floor(seededRandom() * candidates.length)];
+    const sq = seed.userData.q, sr = seed.userData.r;
+    const radius = 3 + Math.floor(seededRandom() * 3);
+    for (let dq = -radius; dq <= radius; dq++) {
+      for (let dr = -radius; dr <= radius; dr++) {
+        if (Math.abs(-dq-dr) > radius) continue;
+        const hDist = HexUtils.dist(0, 0, dq, dr);
+        const chance = 0.55 + (1 - hDist / radius) * 0.4;
+        if (seededRandom() > chance) continue;
+        const tile = tileLookup.get(`${sq + dq},${sr + dr}`);
+        if (tile && !isWaterBiome(tile.userData.biomeKey) && tile.userData.biomeKey !== "HOUSE" && tile.userData.biomeKey !== "FARM" && tile.userData.biomeKey !== "FIELD" && tile.userData.biomeKey !== "TAVERN") {
+          const { q: tq, r: tr } = tile.userData;
+          if (churchPos.some(p => p[0] === tq && p[1] === tr)) continue;
+          if (encPos.some(p => p[0] === tq && p[1] === tr)) continue;
+          if (prisonPos.some(p => p[0] === tq && p[1] === tr)) continue;
+          forestClumps.add(`${tq},${tr}`);
+        }
+      }
+    }
+  }
+
   // Post-prop placement after all biome adjustments are final
   const propMatrices = {
     unifiedBase: [],
@@ -1690,7 +1927,12 @@ function generateWorld(chapter, mapX, mapY) {
     towerRoof: [],
     barnBody: [],
     barnRoof: [],
-    crop: []
+    barnDoorTrim: [],
+    crop: [],
+    tavernBody: [],
+    tavernRoof: [],
+    stableBody: [],
+    stableRoof: []
   };
 
   for (const tile of tiles) {
@@ -1762,8 +2004,11 @@ function generateWorld(chapter, mapX, mapY) {
       const barnM = new THREE.Matrix4().makeTranslation(gx, gy + 0.15 + 0.4, gz);
       propMatrices.barnBody.push(barnM);
 
-      const roofM = new THREE.Matrix4().makeTranslation(gx, gy + 0.15 + 0.9, gz);
+      const roofM = new THREE.Matrix4().makeTranslation(gx, gy + 0.15 + 1.025, gz);
       propMatrices.barnRoof.push(roofM);
+
+      const dtM = new THREE.Matrix4().makeTranslation(gx, gy + 0.15 + 0.375, gz + 0.6 + 0.015);
+      propMatrices.barnDoorTrim.push(dtM);
     } else if (biomeKey === "FIELD") {
       const numBases = 3;
       for (let i = 0; i < numBases; i++) {
@@ -1791,6 +2036,62 @@ function generateWorld(chapter, mapX, mapY) {
           propMatrices.crop.push(cropM);
         }
       }
+    } else if (biomeKey === "TAVERN") {
+      const gx = p.x;
+      const gy = tile.position.y;
+      const gz = p.z;
+
+      const baseM = new THREE.Matrix4().makeTranslation(gx, gy + 0.075, gz);
+      propMatrices.unifiedBase.push(baseM);
+
+      const bodyM = new THREE.Matrix4().makeTranslation(gx, gy + 0.15 + 0.35, gz);
+      propMatrices.tavernBody.push(bodyM);
+
+      const roofM = new THREE.Matrix4().compose(
+        new THREE.Vector3(gx, gy + 0.15 + 0.7 + 0.3, gz),
+        new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4),
+        new THREE.Vector3(1, 1, 1)
+      );
+      propMatrices.tavernRoof.push(roofM);
+
+      const numStables = 1 + Math.floor(seededRandom() * 2);
+      for (let i = 0; i < numStables; i++) {
+        const sAng = (i / numStables) * Math.PI * 2 + 0.5;
+        const sRad = 0.5;
+        const sx = gx + Math.cos(sAng) * sRad;
+        const sz = gz + Math.sin(sAng) * sRad;
+
+        const sbM = new THREE.Matrix4().makeTranslation(sx, gy + 0.075, sz);
+        propMatrices.unifiedBase.push(sbM);
+
+        const stBodyM = new THREE.Matrix4().makeTranslation(sx, gy + 0.15 + 0.2, sz);
+        propMatrices.stableBody.push(stBodyM);
+
+        const stRoofM = new THREE.Matrix4().compose(
+          new THREE.Vector3(sx, gy + 0.15 + 0.4 + 0.175, sz),
+          new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4),
+          new THREE.Vector3(1, 1, 1)
+        );
+        propMatrices.stableRoof.push(stRoofM);
+      }
+    }
+    if (forestClumps.has(`${q},${r}`)) {
+      for (let i = 0; i < 3; i++) {
+        const bAng = (i / 3) * Math.PI * 2 + 0.5; const bRad = 0.9;
+        const gx = p.x + Math.cos(bAng) * bRad;
+        const gy = tile.position.y;
+        const gz = p.z + Math.sin(bAng) * bRad;
+        const baseM = new THREE.Matrix4().makeTranslation(gx, gy + 0.075, gz);
+        propMatrices.unifiedBase.push(baseM);
+        for (let j = 0; j < 3; j++) {
+          const ang = (j / 3) * Math.PI * 2;
+          const lx = Math.cos(ang) * 0.35;
+          const ly = 0.15 + 0.55;
+          const lz = Math.sin(ang) * 0.35;
+          const treeM = new THREE.Matrix4().makeTranslation(gx + lx, gy + ly, gz + lz);
+          propMatrices.coneTree.push(treeM);
+        }
+      }
     }
   }
 
@@ -1814,7 +2115,12 @@ function generateWorld(chapter, mapX, mapY) {
   createInstancedProps(Geoms.towerRoof, royalCrimsonMat, propMatrices.towerRoof);
   createInstancedProps(Geoms.barnBody, barnBodyMat, propMatrices.barnBody);
   createInstancedProps(Geoms.barnRoof, barnRoofMat, propMatrices.barnRoof);
+  createInstancedProps(Geoms.barnDoorTrim, barnDoorTrimMat, propMatrices.barnDoorTrim);
   createInstancedProps(Geoms.crop, cropMat, propMatrices.crop);
+  createInstancedProps(Geoms.tavernBody, tavernWallMat, propMatrices.tavernBody);
+  createInstancedProps(Geoms.tavernRoof, tavernRoofMat, propMatrices.tavernRoof);
+  createInstancedProps(Geoms.stableBody, woodMat, propMatrices.stableBody);
+  createInstancedProps(Geoms.stableRoof, tavernRoofMat, propMatrices.stableRoof);
 
   churchPos.forEach(pos => {
     const tile = tileLookup.get(`${pos[0]},${pos[1]}`);
@@ -1847,7 +2153,11 @@ function generateWorld(chapter, mapX, mapY) {
 
 
   if (hero) {
+    hero.userData.isMoving = false;
+    hero.userData.isSpawning = false;
+    hero.userData.moveT = 0;
     worldContainer.add(hero);
+    if (state.hasWeaponStrike) equipBlacksteelGreatsword();
     state.q = 0; state.r = 0;
     place(hero, 0, 0);
     hero.userData.targetY = hero.position.y;
@@ -1877,11 +2187,12 @@ function sampleSpawn(type, q, r) {
     "TownFolk": { hp: 12, atk: 4, range: 1 },
     "Catapult": { hp: 80, atk: 20, range: 4 },
     "Freed Prisoner": { hp: 15, atk: 6, range: 1, faction: 'neutral' },
-    "Zombie": { hp: 20, atk: 7, range: 1 }
+    "Zombie": { hp: 20, atk: 7, range: 1 },
+    "Gelatinous Cube": { hp: 30, atk: 9, range: 1 }
   }[type] || { hp: 20, atk: 5 };
 
   const humanFactions = ["Knight", "Priest", "Guard", "Ranger", "TownFolk", "Catapult"];
-  const supernaturalFactions = ["Wretch", "Husk", "Abomination"];
+  const supernaturalFactions = ["Wretch", "Husk", "Abomination", "Gelatinous Cube"];
   const undeadFactions = ["Zombie"];
   const faction = humanFactions.includes(type) ? 'human' : (supernaturalFactions.includes(type) ? 'supernatural' : (undeadFactions.includes(type) ? 'undead' : 'neutral'));
 
@@ -1919,15 +2230,10 @@ function createBlackKnight() {
   const torso = new THREE.Mesh(Geoms.unitTorso, voidSteelMat);
   torso.position.y = 0.72; torso.castShadow = true; group.add(torso);
 
-  const sword = new THREE.Group();
-  const blade = new THREE.Mesh(Geoms.swordBlade, deepKnightSteel);
-  blade.position.y = 0.75; sword.add(blade);
-  const guard = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.05, 0.08), voidSteelMat);
-  guard.position.y = 0.02; sword.add(guard);
-  const hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.3, 8), royalCrimsonMat);
-  hilt.position.y = -0.15; sword.add(hilt);
-  sword.position.set(0.52, 0.8, 0.35); sword.rotation.set(-0.7, 0.1, -0.3);
-  group.add(sword);
+  const lArm = new THREE.Mesh(Geoms.unitArm, voidSteelMat);
+  lArm.position.set(-0.42, 0.72, 0); lArm.castShadow = true; group.add(lArm);
+  const rArm = new THREE.Mesh(Geoms.unitArm, voidSteelMat);
+  rArm.position.set(0.42, 0.72, 0); rArm.castShadow = true; group.add(rArm);
 
   const helm = new THREE.Mesh(Geoms.unitHelm, voidSteelMat);
   helm.position.y = 1.25; helm.castShadow = true; group.add(helm);
@@ -1936,6 +2242,20 @@ function createBlackKnight() {
   visorGlow.position.set(0, 1.28, 0.2); group.add(visorGlow);
 
   return group;
+}
+
+function equipBlacksteelGreatsword() {
+  if (hero.getObjectByName("BlacksteelGreatsword")) return;
+  const sword = new THREE.Group();
+  sword.name = "BlacksteelGreatsword";
+  const blade = new THREE.Mesh(Geoms.swordBlade, deepKnightSteel);
+  blade.position.y = 0.75; sword.add(blade);
+  const guard = new THREE.Mesh(Geoms.swordGuard, voidSteelMat);
+  guard.position.y = 0.02; sword.add(guard);
+  const hilt = new THREE.Mesh(Geoms.swordHilt, royalCrimsonMat);
+  hilt.position.y = -0.15; sword.add(hilt);
+  sword.position.set(0.52, 0.8, 0.35); sword.rotation.set(-0.7, 0.1, -0.3);
+  hero.add(sword);
 }
 
 function createEnemyKnight() {
@@ -2175,6 +2495,24 @@ function createMonster(type) {
     }
     const primaryEye = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 8), new THREE.MeshBasicMaterial({color: 0xef4444}));
     primaryEye.position.set(0, 1.1, 0.32); group.add(primaryEye);
+  }
+  if(type === "Gelatinous Cube") {
+    const gBase = new THREE.Mesh(baseGeo, unifiedBaseMat);
+    gBase.position.y = 0.075; gBase.castShadow = true;
+    const cubeGroup = new THREE.Group();
+    cubeGroup.add(gBase);
+    const gelMat = new THREE.MeshPhysicalMaterial({
+      color: 0x22c55e, transparent: true, opacity: 0.35,
+      roughness: 0.1, metalness: 0, clearcoat: 0.3,
+      side: THREE.DoubleSide
+    });
+    const cube = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), gelMat);
+    cube.position.y = 0.45; cube.castShadow = true; cubeGroup.add(cube);
+    const helm = new THREE.Mesh(Geoms.unitHelm, voidSteelMat);
+    helm.position.set(0, 0.55, 0.08); cubeGroup.add(helm);
+    const blade = new THREE.Mesh(Geoms.swordBlade, deepKnightSteel);
+    blade.position.set(0.18, 0.35, 0); blade.rotation.z = -0.4; cubeGroup.add(blade);
+    return cubeGroup;
   }
   return group;
 }
@@ -2494,7 +2832,7 @@ function disposeMesh(mesh) {
 
       const isPooledMat = Object.values(biomeMaterials).includes(node.material) || 
                           Object.values(activeColors).includes(node.material) ||
-                          [unifiedBaseMat, foliageMat, woodMat, royalCrimsonMat, keepStoneMat, barnBodyMat, barnRoofMat, cropMat].includes(node.material);
+                          [unifiedBaseMat, foliageMat, woodMat, royalCrimsonMat, keepStoneMat, barnBodyMat, barnRoofMat, barnDoorTrimMat, cropMat].includes(node.material);
       if (node.material && !isPooledMat) {
         if (Array.isArray(node.material)) node.material.forEach(m => m.dispose());
         else node.material.dispose();
@@ -2508,8 +2846,8 @@ const hero = createBlackKnight();
 const state = { 
   q: 0, r: 0, hp: 100, maxHp: 100, armor: 0, satiation: 10, maxSatiation: 10, 
   shillings: 0, str: 7, wis: 5, xp: 0, level: 1, army: 0, rations: 8, ap: 4, maxAp: 4, 
-  inventory: [], turn: 1,
-  spells: { "Blood Burst Scroll": 0, "Flesh Mend Scroll": 0, "Reaping Bolt Scroll": 0 }
+  inventory: [], turn: 1, hasWeaponStrike: false, characterName: "The Black Knight",
+  spells: { "Fireball Scroll": 0, "Flesh Mend Scroll": 0, "Soul Drain Scroll": 0, "Lightning Bolt Scroll": 0, "Teleport Scroll": 0 }
 };
 
 const logBox = document.getElementById("log");
@@ -2519,6 +2857,7 @@ const elArmor = document.getElementById("armor"), elSatiation = document.getElem
 const elXp = document.getElementById("xp"), elAp = document.getElementById("ap"), elMap = document.getElementById("map"), elHp = document.getElementById("hp"), elMhp = document.getElementById("mhp"), elStr = document.getElementById("str"), elWis = document.getElementById("wis"), elInv = document.getElementById("inv");
 
 function updateUI(){
+  document.getElementById("char-name-display").textContent = state.characterName;
   elXp.textContent = state.xp;
   elAp.textContent = state.ap; elMap.textContent = state.maxAp;
   elHp.textContent = Math.max(0, state.hp); elMhp.textContent = state.maxHp;
@@ -2550,32 +2889,40 @@ function updateUI(){
     elInv.appendChild(slot);
   }
 
-  const bLvl = state.spells["Blood Burst Scroll"];
+  const bLvl = state.spells["Fireball Scroll"];
   const mLvl = state.spells["Flesh Mend Scroll"];
-  const rLvl = state.spells["Reaping Bolt Scroll"];
+  const rLvl = state.spells["Soul Drain Scroll"];
+  const lLvl = state.spells["Lightning Bolt Scroll"];
+  const tLvl = state.spells["Teleport Scroll"];
 
-  const bBtn = document.getElementById("btn-blood");
+  const bBtn = document.getElementById("btn-fireball");
   const mBtn = document.getElementById("btn-mend");
-  const rBtn = document.getElementById("btn-reap");
+  const rBtn = document.getElementById("btn-souldrain");
+  const lBtn = document.getElementById("btn-lightning");
+  const tBtn = document.getElementById("btn-teleport");
 
-  bBtn.style.display = bLvl > 0 ? "flex" : "none";
-  if (bLvl > 0) bBtn.querySelector("span").textContent = `Blood Burst (Lvl ${bLvl})`;
+  bBtn.classList.toggle("locked", bLvl <= 0);
+  mBtn.classList.toggle("locked", mLvl <= 0);
+  rBtn.classList.toggle("locked", rLvl <= 0);
+  lBtn.classList.toggle("locked", lLvl <= 0);
+  tBtn.classList.toggle("locked", tLvl <= 0);
+  const sBtn = document.getElementById("btn-strike");
+  sBtn.classList.toggle("locked", !state.hasWeaponStrike);
 
-  mBtn.style.display = mLvl > 0 ? "flex" : "none";
-  if (mLvl > 0) mBtn.querySelector("span").textContent = `Flesh Mend (Lvl ${mLvl})`;
-
-  rBtn.style.display = rLvl > 0 ? "flex" : "none";
-  if (rLvl > 0) rBtn.querySelector("span").textContent = `Reaping Bolt (Lvl ${rLvl})`;
+  if (bLvl > 0) bBtn.querySelector(".skill-name").textContent = `Fireball (Lvl ${bLvl})`;
+  if (mLvl > 0) mBtn.querySelector(".skill-name").textContent = `Flesh Mend (Lvl ${mLvl})`;
+  if (rLvl > 0) rBtn.querySelector(".skill-name").textContent = `Soul Drain (Lvl ${rLvl})`;
+  if (lLvl > 0) lBtn.querySelector(".skill-name").textContent = `Lightning Bolt (Lvl ${lLvl})`;
+  if (tLvl > 0) tBtn.querySelector(".skill-name").textContent = `Teleport (Lvl ${tLvl})`;
 
   document.querySelectorAll(".action-btn").forEach(btn => btn.classList.remove("active"));
   if (spell === "weapon strike") document.getElementById("btn-strike").classList.add("active");
   if (spell === "melee swing") document.getElementById("btn-swing").classList.add("active");
-  if (spell === "blood burst") document.getElementById("btn-blood").classList.add("active");
+  if (spell === "fireball") document.getElementById("btn-fireball").classList.add("active");
   if (spell === "flesh mend") document.getElementById("btn-mend").classList.add("active");
-  if (spell === "reaping bolt") document.getElementById("btn-reap").classList.add("active");
-  const targetingIndicator = document.getElementById("targeting-indicator");
-  if (spell) { targetingIndicator.style.display = "flex"; document.getElementById("targeting-text").textContent = `Priming ${spell}...`; }
-  else { targetingIndicator.style.display = "none"; }
+  if (spell === "soul drain") document.getElementById("btn-souldrain").classList.add("active");
+  if (spell === "lightning bolt") document.getElementById("btn-lightning").classList.add("active");
+  if (spell === "teleport") document.getElementById("btn-teleport").classList.add("active");
 }
 
 function createDamagePopup(text, position, color="#ff4d4d") {
@@ -2593,23 +2940,50 @@ function createDamagePopup(text, position, color="#ff4d4d") {
 }
 
 const activeFx = [];
-function spawnBloodBurstFx(worldPos) {
+function spawnFireballFx(worldPos) {
   const ringGeo = new THREE.RingGeometry(0.1, 0.3, 32);
   ringGeo.rotateX(-Math.PI/2);
-  const ringMat = new THREE.MeshBasicMaterial({color: 0xef4444, side: THREE.DoubleSide, transparent: true, opacity: 0.95});
+  const ringMat = new THREE.MeshBasicMaterial({color: 0xf97316, side: THREE.DoubleSide, transparent: true, opacity: 0.95});
   const ring = new THREE.Mesh(ringGeo, ringMat);
   ring.position.set(worldPos.x, worldPos.y + 0.15, worldPos.z);
   scene.add(ring);
   activeFx.push({ mesh: ring, type: "expand", speed: 0.22, tick() { this.mesh.scale.x += this.speed; this.mesh.scale.z += this.speed; this.mesh.material.opacity -= 0.035; return this.mesh.material.opacity <= 0; } });
 }
 
-function spawnReapingBoltFx(startPos, endPos) {
+function spawnSoulDrainFx(startPos, endPos) {
   const points = [new THREE.Vector3(startPos.x, startPos.y + 1.2, startPos.z), new THREE.Vector3(endPos.x, endPos.y + 0.6, endPos.z)];
   const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
   const lineMat = new THREE.LineBasicMaterial({color: 0xa855f7, linewidth: 4, transparent: true, opacity: 1});
   const line = new THREE.Line(lineGeo, lineMat);
   scene.add(line);
   activeFx.push({ mesh: line, tick() { this.mesh.material.opacity -= 0.065; return this.mesh.material.opacity <= 0; } });
+}
+
+function spawnLightningBoltFx(startPos, endPos) {
+  const pts = [];
+  const segments = 8;
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const x = startPos.x + (endPos.x - startPos.x) * t + (i > 0 && i < segments ? (Math.random() - 0.5) * 0.6 : 0);
+    const z = startPos.z + (endPos.z - startPos.z) * t + (i > 0 && i < segments ? (Math.random() - 0.5) * 0.6 : 0);
+    const y = startPos.y + (endPos.y - startPos.y) * t + 0.8 + Math.sin(t * Math.PI) * 1.2;
+    pts.push(new THREE.Vector3(x, y, z));
+  }
+  const lineGeo = new THREE.BufferGeometry().setFromPoints(pts);
+  const lineMat = new THREE.LineBasicMaterial({color: 0xfbbf24, linewidth: 2, transparent: true, opacity: 0.9});
+  const line = new THREE.Line(lineGeo, lineMat);
+  scene.add(line);
+  activeFx.push({ mesh: line, tick() { this.mesh.material.opacity -= 0.06; return this.mesh.material.opacity <= 0; } });
+}
+
+function spawnTeleportFx(worldPos) {
+  const ringGeo = new THREE.RingGeometry(0.1, 0.45, 32);
+  ringGeo.rotateX(-Math.PI/2);
+  const ringMat = new THREE.MeshBasicMaterial({color: 0x818cf8, side: THREE.DoubleSide, transparent: true, opacity: 0.9});
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.position.set(worldPos.x, worldPos.y + 0.1, worldPos.z);
+  scene.add(ring);
+  activeFx.push({ mesh: ring, type: "expand", speed: 0.18, tick() { this.mesh.scale.x += this.speed; this.mesh.scale.z += this.speed; this.mesh.material.opacity -= 0.04; return this.mesh.material.opacity <= 0; } });
 }
 
 function spawnFleshMendFx(worldPos) {
@@ -2632,7 +3006,7 @@ function gainScars(x){
 
 function tryLoot(chance) {
   if (Math.random() > (chance * 2)) return; // Double generic drop rates
-  const items = ["Blood Burst Scroll", "Flesh Mend Scroll", "Reaping Bolt Scroll", "Sun Rune Armor", "Rations", "Rations", "Rations"]; // Rations added multiple times for higher drop chance
+  const items = ["Fireball Scroll", "Flesh Mend Scroll", "Soul Drain Scroll", "Lightning Bolt Scroll", "Teleport Scroll", "Sun Rune Armor", "Rations", "Rations", "Rations", "Blacksteel Greatsword"];
   const item = items[Math.floor(Math.random() * items.length)];
   if (item === "Sun Rune Armor") {
     state.armor += 5;
@@ -2648,13 +3022,23 @@ function tryLoot(chance) {
   } else if (item === "Rations") {
     state.rations++;
     log(`<span style="color:#34d399;">Looted: <b>${item}</b>.</span>`);
+  } else if (item === "Blacksteel Greatsword") {
+    if (!state.hasWeaponStrike) {
+      state.hasWeaponStrike = true;
+      equipBlacksteelGreatsword();
+      state.inventory.push(item);
+      log(`<span style="color:#cbd5e1;">Looted: <b>${item}</b>! Weapon Strike unlocked.</span>`);
+    } else {
+      state.shillings += 25;
+      log(`<span style="color:#fbbf24;">Looted: Duplicate ${item}. Converted to 25 shillings.</span>`);
+    }
   } else {
     state.inventory.push(item); log(`<span style="color:#c084fc;">Looted: ${item}.</span>`);
   }
   updateUI();
 }
 
-const SPELL_RANGE = { "weapon strike": 1, "melee swing": 1, "blood burst": 2, "reaping bolt": 3 };
+const SPELL_RANGE = { "weapon strike": 1, "melee swing": 1, "fireball": 2, "soul drain": 3, "lightning bolt": 3, "teleport": 99 };
 
 function onEnemySlain(enemy, isMelee) {
   enemy.mesh.visible = false;
@@ -2798,6 +3182,9 @@ function checkEdgeNeighbors() {
       if (!isPassableBiome(tileData.userData.biomeKey) && isEdge) {
         availableTravelDirs.push({ dq, dr });
       }
+    } else {
+      // Neighbor doesn't exist — this direction leads off the map
+      availableTravelDirs.push({ dq, dr });
     }
   }
 }
@@ -2959,7 +3346,7 @@ async function processTurnAdvance() {
   state.ap = state.maxAp;
   const newDay = Math.floor((state.turn - 1) / 2) + 1;
   if (newDay !== prevDay) {
-    log(`<div style='color:#fca5a5; font-size:11px; margin-top:8px; font-family:var(--font-serif); letter-spacing:1px;'><b>Day ${newDay}</b></div>`);
+    log(`<div style='color:var(--color-gold); font-size:11px; margin-top:8px; font-family:var(--font-serif); letter-spacing:1px;'><b>Day ${newDay}</b></div>`);
   }
   log(`<b style="color:#fff; font-size:11px; margin-top:8px; display:block;">Turn ${state.turn}</b>`);
   log("<div style='color:#fb923c; margin-top:6px;'>[ Horrors re-orient themselves ]</div>");
@@ -3033,6 +3420,7 @@ async function processTurnAdvance() {
           const roll = Math.random();
           if (roll > 0.9) type = "Catapult";
           else if (roll > 0.75) type = "Abomination";
+          else if (roll > 0.6) type = "Gelatinous Cube";
           else if (roll > 0.55) type = "Ranger";
           else if (roll > 0.3) type = "Husk";
 
@@ -3188,7 +3576,7 @@ async function processTurnAdvance() {
 
         const targetName = target.isPlayer ? 'Player' : target.type;
         log(`The ${enemy.type} attacks ${targetName} for <span style="color:#f87171;">${dmg} damage</span>.`);
-        if (enemy.type === "Ranger") spawnReapingBoltFx(enemy.mesh.position, target.mesh.position);
+        if (enemy.type === "Ranger") spawnSoulDrainFx(enemy.mesh.position, target.mesh.position);
         
         triggerCameraShake(0.5); createDamagePopup(`-${dmg}`, target.mesh.position, "#f87171");
         SoundSystem.playDamage(); enemy.ap -= 1; acting = true;
@@ -3283,8 +3671,9 @@ async function processTurnAdvance() {
 function selectSpell(spellName) {
   if (processingTurn || state.hp <= 0) return;
 
-  const spellMap = { "blood burst": "Blood Burst Scroll", "flesh mend": "Flesh Mend Scroll", "reaping bolt": "Reaping Bolt Scroll" };
+  const spellMap = { "fireball": "Fireball Scroll", "flesh mend": "Flesh Mend Scroll", "soul drain": "Soul Drain Scroll", "lightning bolt": "Lightning Bolt Scroll", "teleport": "Teleport Scroll" };
   
+  if (spellName === "weapon strike" && !state.hasWeaponStrike) return;
   if (spellName !== "weapon strike" && spellName !== "melee swing" && state.spells[spellMap[spellName]] <= 0) {
     return;
   }
@@ -3294,11 +3683,10 @@ function selectSpell(spellName) {
   }
   else {
     let cost = 1;
-    if (spellName === "reaping bolt") cost = 2;
+    if (spellName === "soul drain" || spellName === "lightning bolt" || spellName === "teleport") cost = 2;
 
     if (state.ap < cost) { log(`Not enough AP! ${spellName} requires <span class="highlight">${cost} AP</span>.`); SoundSystem.playBuzzer(); return; }
-    spell = spellName; log(`<span style='color:#c084fc;'>Priming ${spellName}... (Select tactical target tile)</span>`);
-    SoundSystem.playSpellCast(); updateUI();
+    spell = spellName; SoundSystem.playSpellCast(); updateUI();
   }
 }
 
@@ -3307,24 +3695,40 @@ window.addEventListener("keydown", e => {
   if (document.getElementById("travel-popup").style.display === "flex") return;
   if(e.code === "Space") e.preventDefault();
   if(state.hp <= 0) return;
-  if(e.key === "1") selectSpell("weapon strike");
-  if(e.key === "2") selectSpell("blood burst");
-  if(e.key === "3") selectSpell("flesh mend");
-  if(e.key === "4") selectSpell("reaping bolt");
-  if(e.key === "5") selectSpell("melee swing");
+  if(e.key === "1") selectSpell("melee swing");
+  if(e.key === "2") selectSpell("weapon strike");
+  if(e.key === "3") selectSpell("fireball");
+  if(e.key === "4") selectSpell("flesh mend");
+  if(e.key === "5") selectSpell("soul drain");
+  if(e.key === "6") selectSpell("lightning bolt");
+  if(e.key === "7") selectSpell("teleport");
   if(e.key === "e" || e.key === "E") { sessionStorage.setItem('app_nav','1'); window.location.href = "openworld.html"; }
   if(e.code === "Space") processTurnAdvance();
 });
 
 document.getElementById("btn-strike").addEventListener("click", () => selectSpell("weapon strike"));
-document.getElementById("btn-blood").addEventListener("click", () => selectSpell("blood burst"));
+document.getElementById("btn-fireball").addEventListener("click", () => selectSpell("fireball"));
 document.getElementById("btn-mend").addEventListener("click", () => selectSpell("flesh mend"));
-document.getElementById("btn-reap").addEventListener("click", () => selectSpell("reaping bolt"));
+document.getElementById("btn-souldrain").addEventListener("click", () => selectSpell("soul drain"));
+document.getElementById("btn-lightning").addEventListener("click", () => selectSpell("lightning bolt"));
+document.getElementById("btn-teleport").addEventListener("click", () => selectSpell("teleport"));
 document.getElementById("btn-swing").addEventListener("click", () => selectSpell("melee swing"));
 document.getElementById("btn-explore-area").addEventListener("click", () => {
   sessionStorage.setItem('app_nav','1'); window.location.href = "openworld.html";
 });
 document.getElementById("btn-end-turn").addEventListener("click", () => { if (state.hp > 0) processTurnAdvance(); });
+
+const nameInput = document.getElementById("name-input");
+const nameSaveBtn = document.getElementById("name-save-btn");
+nameInput.value = state.characterName;
+nameSaveBtn.addEventListener("click", () => {
+  const trimmed = nameInput.value.trim();
+  if (trimmed.length > 0) {
+    state.characterName = trimmed;
+    updateUI();
+  }
+});
+nameInput.addEventListener("keydown", e => { if (e.key === "Enter") nameSaveBtn.click(); });
 
 const panelHandle = document.getElementById("panel-resize-handle");
 const chroniclePanel = document.getElementById("chronicle-ui");
@@ -3350,6 +3754,15 @@ panelHandle.addEventListener("mousedown", e => {
 });
 
 
+
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.querySelectorAll(".tab-content").forEach(tc => tc.classList.add("hidden"));
+    document.getElementById("tab-" + btn.dataset.tab).classList.remove("hidden");
+  });
+});
 
 document.getElementById("chapter-select").addEventListener("change", (e) => {
   const chapter = parseInt(e.target.value);
@@ -3398,6 +3811,216 @@ document.getElementById("chapter-select").addEventListener("change", (e) => {
   updateUI();
 });
 
+const codexEnemyStats = {
+  "The Black Knight": { hp: 100, atk: 10, range: 1, faction: "Hero" },
+  "Wretch":       { hp: 18, atk: 5,  range: 1, faction: "Supernatural" },
+  "Husk":         { hp: 25, atk: 8,  range: 1, faction: "Supernatural" },
+  "Abomination":  { hp: 45, atk: 12, range: 1, faction: "Supernatural" },
+  "Gelatinous Cube": { hp: 30, atk: 9, range: 1, faction: "Supernatural" },
+  "Knight":       { hp: 35, atk: 10, range: 1, faction: "Human" },
+  "Priest":       { hp: 30, atk: 0,  range: 1, faction: "Human" },
+  "Guard":        { hp: 40, atk: 12, range: 1, faction: "Human" },
+  "Ranger":       { hp: 25, atk: 10, range: 3, faction: "Human" },
+  "TownFolk":     { hp: 12, atk: 4,  range: 1, faction: "Human" },
+  "Catapult":     { hp: 80, atk: 20, range: 4, faction: "Human (Elite)" },
+  "Zombie":       { hp: 20, atk: 7,  range: 1, faction: "Undead" },
+  "The Undying Tyrant": { hp: 120, atk: 14, range: 1, faction: "Boss" },
+  "Church":       { hp: 45, atk: 0,  range: 0, faction: "Structure" },
+  "Prison Cart":  { hp: 50, atk: 0,  range: 0, faction: "Structure" },
+  "Ruined Enclave": { hp: 0, atk: 0,  range: 0, faction: "Structure" },
+  "House":        { hp: 0, atk: 0,  range: 0, faction: "Structure" },
+  "Barn":         { hp: 0, atk: 0,  range: 0, faction: "Structure" },
+  "Tree":         { hp: 0, atk: 0,  range: 0, faction: "Foliage" },
+  "Crop":         { hp: 0, atk: 0,  range: 0, faction: "Foliage" }
+};
+
+const codexPreview = document.getElementById("codex-preview");
+const codexSelect = document.getElementById("codex-select");
+const codexInfo = document.getElementById("codex-info");
+let codexScene, codexCam, codexRenderer, codexModelGroup;
+let codexAnimId = null;
+
+function initCodexPreview() {
+  if (codexRenderer) return;
+  codexScene = new THREE.Scene();
+  codexScene.background = new THREE.Color(0xffffff);
+  codexCam = new THREE.PerspectiveCamera(35, codexPreview.clientWidth / codexPreview.clientHeight, 0.1, 100);
+  codexCam.position.set(2.7, 2.27, 3.78);
+  codexCam.lookAt(0, 0, 0);
+  codexRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  codexRenderer.setSize(codexPreview.clientWidth, codexPreview.clientHeight);
+  codexRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  codexPreview.appendChild(codexRenderer.domElement);
+
+  const amb = new THREE.AmbientLight(0xffffff, 0.6);
+  codexScene.add(amb);
+  const dir = new THREE.DirectionalLight(0xfffbeb, 1.8);
+  dir.position.set(3, 6, 4);
+  codexScene.add(dir);
+}
+
+function showCodexEnemy(type) {
+  if (codexModelGroup) { codexScene.remove(codexModelGroup); codexModelGroup = null; }
+  if (!type) { codexInfo.textContent = ""; if (codexRenderer) codexRenderer.clear(); return; }
+
+  initCodexPreview();
+  codexZoom = 1;
+  codexBobPhase = 0;
+
+  if (type === "The Black Knight") {
+    codexModelGroup = createBlackKnight();
+    if (state.hasWeaponStrike) {
+      const sword = new THREE.Group();
+      sword.name = "BlacksteelGreatsword";
+      const blade = new THREE.Mesh(Geoms.swordBlade, deepKnightSteel);
+      blade.position.y = 0.75; sword.add(blade);
+      const guard = new THREE.Mesh(Geoms.swordGuard, voidSteelMat);
+      guard.position.y = 0.02; sword.add(guard);
+      const hilt = new THREE.Mesh(Geoms.swordHilt, royalCrimsonMat);
+      hilt.position.y = -0.15; sword.add(hilt);
+      sword.position.set(0.52, 0.8, 0.35); sword.rotation.set(-0.7, 0.1, -0.3);
+      codexModelGroup.add(sword);
+    }
+  } else if (type === "Church") {
+    codexModelGroup = createChurch();
+  } else if (type === "Prison Cart") {
+    codexModelGroup = createPrison();
+  } else if (type === "Ruined Enclave") {
+    const group = new THREE.Group();
+    const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+    base.position.y = 0.075; group.add(base);
+    const towerBody = new THREE.Mesh(Geoms.towerBody, keepStoneMat);
+    towerBody.position.y = 0.7; group.add(towerBody);
+    const towerRoof = new THREE.Mesh(Geoms.towerRoof, royalCrimsonMat);
+    towerRoof.position.y = 1.35; group.add(towerRoof);
+    codexModelGroup = group;
+  } else if (type === "Tree") {
+    const group = new THREE.Group();
+    const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+    base.position.y = 0.075; group.add(base);
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.4, 6), new THREE.MeshStandardMaterial({color: 0x78350f, roughness: 0.9}));
+    trunk.position.y = 0.28; group.add(trunk);
+    const foliage = new THREE.Mesh(Geoms.coneTree, foliageMat);
+    foliage.position.y = 0.9; group.add(foliage);
+    codexModelGroup = group;
+  } else if (type === "Crop") {
+    const group = new THREE.Group();
+    for (let i = 0; i < 7; i++) {
+      const stalk = new THREE.Mesh(Geoms.crop, cropMat);
+      stalk.position.set((Math.random() - 0.5) * 0.5, 0.35, (Math.random() - 0.5) * 0.5);
+      stalk.rotation.set(0, Math.random() * Math.PI * 2, 0);
+      group.add(stalk);
+    }
+    codexModelGroup = group;
+  } else if (type === "House") {
+    const group = new THREE.Group();
+    const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+    base.position.y = 0.075; group.add(base);
+    const walls = new THREE.Mesh(Geoms.boxHouse, woodMat);
+    walls.position.y = 0.4; group.add(walls);
+    const roof = new THREE.Mesh(Geoms.coneRoof, royalCrimsonMat);
+    roof.position.y = 0.85; roof.rotation.y = Math.PI / 4; group.add(roof);
+    codexModelGroup = group;
+  } else if (type === "Barn") {
+    const group = new THREE.Group();
+    const base = new THREE.Mesh(baseGeo, unifiedBaseMat);
+    base.position.y = 0.075; group.add(base);
+    const body = new THREE.Mesh(Geoms.barnBody, barnBodyMat);
+    body.position.y = 0.45; group.add(body);
+    const roof = new THREE.Mesh(Geoms.barnRoof, barnRoofMat);
+    roof.position.y = 0.9; roof.rotation.y = Math.PI / 2; group.add(roof);
+    codexModelGroup = group;
+  } else if (type === "Lightning Bolt") {
+    codexModelGroup = createMonster(type);
+  } else if (type === "The Undying Tyrant") {
+    codexModelGroup = createBoss();
+  } else {
+    codexModelGroup = createMonster(type);
+  }
+
+  // Uniform scale so all models appear the same size
+  const box = new THREE.Box3().setFromObject(codexModelGroup);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const targetSize = 1.6;
+  const scale = targetSize / Math.max(maxDim, 0.01);
+  codexModelGroup.scale.set(scale, scale, scale);
+  codexModelGroup.position.sub(center);
+  codexModelGroup.position.y += size.y * 0.15 * scale;
+  codexBaseY = codexModelGroup.position.y;
+
+  codexScene.add(codexModelGroup);
+
+  const s = codexEnemyStats[type];
+  if (s) codexInfo.innerHTML = `${type}<br><span style="font-size:11px; color:#64748b;">${s.faction} | HP: ${s.hp} | ATK: ${s.atk} | Range: ${s.range}</span>`;
+  else codexInfo.textContent = type;
+
+  if (codexAnimId) cancelAnimationFrame(codexAnimId);
+  animateCodex();
+}
+
+let codexZoom = 1, codexBobPhase = 0, codexBaseY = 0;
+let codexDragging = false, codexPrevX = 0, codexPrevY = 0, codexDragRotX = 0, codexDragRotY = 0;
+
+function animateCodex() {
+  if (codexModelGroup) {
+    codexBobPhase += 0.025;
+    codexModelGroup.position.y = codexBaseY + Math.sin(codexBobPhase) * 0.06;
+  }
+  if (codexRenderer && codexPreview.offsetParent !== null) {
+    codexRenderer.render(codexScene, codexCam);
+    codexAnimId = requestAnimationFrame(animateCodex);
+  } else {
+    codexAnimId = null;
+  }
+}
+
+codexPreview.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  codexZoom = Math.max(0.4, Math.min(2.5, codexZoom - e.deltaY * 0.001));
+  const dist = 5.4 * codexZoom;
+  codexCam.position.set(dist * 0.5, dist * 0.42, dist * 0.7);
+  codexCam.lookAt(0, 0, 0);
+}, { passive: false });
+
+codexPreview.addEventListener("pointerdown", (e) => {
+  codexDragging = true;
+  codexPrevX = e.clientX;
+  codexPreview.setPointerCapture(e.pointerId);
+});
+
+codexPreview.addEventListener("pointermove", (e) => {
+  if (!codexDragging || !codexModelGroup) return;
+  const dx = e.clientX - codexPrevX;
+  codexPrevX = e.clientX;
+  codexDragRotY += dx * 0.01;
+  codexModelGroup.rotation.y = codexDragRotY;
+});
+
+codexPreview.addEventListener("pointerup", (e) => {
+  codexDragging = false;
+  codexPreview.releasePointerCapture(e.pointerId);
+});
+
+codexSelect.addEventListener("change", () => showCodexEnemy(codexSelect.value));
+
+// Refresh codex renderer size when tab becomes visible
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (btn.dataset.tab === "codex" && codexRenderer) {
+      const w = codexPreview.clientWidth;
+      const h = codexPreview.clientHeight;
+      if (w > 0 && h > 0) {
+        codexRenderer.setSize(w, h);
+        codexCam.aspect = w / h;
+        codexCam.updateProjectionMatrix();
+      }
+      if (codexModelGroup && !codexAnimId) animateCodex();
+    }
+  });
+});
+
 const ray = new THREE.Raycaster(); const mouse = new THREE.Vector2();
 
 window.addEventListener("pointerdown", e => {
@@ -3421,24 +4044,46 @@ window.addEventListener("pointerdown", e => {
   const q = hit.object.userData.q; const r = hit.object.userData.r;
   const dist = HexUtils.dist(state.q, state.r, q, r);
   if(spell){
+    if (spell === "teleport") {
+      const lvl = state.spells["Teleport Scroll"] || 1;
+      const tpRange = lvl * 2;
+      if (dist > tpRange) { log(`Teleport range is ${tpRange} hexes at your level.`); spell = null; updateUI(); return; }
+      if (state.ap < 2) { log("Not enough AP! Teleport requires 2 AP."); SoundSystem.playBuzzer(); spell = null; updateUI(); return; }
+      const tile = tileLookup.get(`${q},${r}`);
+      if (!tile || isWaterBiome(tile.userData.biomeKey)) { log("Cannot teleport onto water."); spell = null; updateUI(); return; }
+      const occupied = enemies.some(e => e.hp > 0 && e.q === q && e.r === r) || (state.q === q && state.r === r) ||
+        prisons.some(p => p.q === q && p.r === r) || churches.some(c => c.q === q && c.r === r) || enclaves.some(e => e.q === q && e.r === r);
+      if (occupied) { log("Target hex is occupied."); spell = null; updateUI(); return; }
+      state.ap -= 2;
+      spawnTeleportFx(hero.position.clone());
+      place(hero, q, r);
+      state.q = q; state.r = r;
+      spawnTeleportFx(hero.position.clone());
+      triggerCameraShake(0.2);
+      log(`<span style='color:#818cf8;'>Teleported to [${q}, ${r}].</span>`);
+      spell = null; updateUI(); return;
+    }
+
     let cost = 1;
-    if (spell === "reaping bolt") cost = 2;
+    if (spell === "soul drain" || spell === "lightning bolt") cost = 2;
 
     if (dist > SPELL_RANGE[spell]) { log(`Target out of reach for ${spell}.`); spell = null; updateUI(); return; }
     if (state.ap < cost) { log("Magic disrupted! Action Points depleted."); SoundSystem.playBuzzer(); spell = null; updateUI(); return; }
 
     state.ap -= cost; triggerCameraShake(0.35);
-    if(spell === "blood burst") spawnBloodBurstFx(hit.point);
-    if(spell === "reaping bolt") spawnReapingBoltFx(hero.position, hit.point);
+    if(spell === "fireball") spawnFireballFx(hit.point);
+    if(spell === "soul drain") spawnSoulDrainFx(hero.position, hit.point);
+    if(spell === "lightning bolt") spawnLightningBoltFx(hero.position, hit.point);
     if(spell === "weapon strike" || spell === "melee swing") SoundSystem.playSlash();
 
     enemies.forEach(enemy => {
-      if(enemy.hp > 0 && HexUtils.dist(q, r, enemy.q, enemy.r) <= (spell === "blood burst" ? 1 : 0)){
-        const spellMap = { "blood burst": "Blood Burst Scroll", "reaping bolt": "Reaping Bolt Scroll" };
+      if(enemy.hp > 0 && HexUtils.dist(q, r, enemy.q, enemy.r) <= (spell === "fireball" ? 1 : 0)){
+        const spellMap = { "fireball": "Fireball Scroll", "soul drain": "Soul Drain Scroll", "lightning bolt": "Lightning Bolt Scroll" };
         const lvl = state.spells[spellMap[spell]] || 1;
         let baseDmg;
-        if (spell === "blood burst") baseDmg = 12 + state.wis * 2;
-        else if (spell === "reaping bolt") baseDmg = 20 + state.wis * 2;
+        if (spell === "fireball") baseDmg = 12 + state.wis * 2;
+        else if (spell === "soul drain") baseDmg = 20 + state.wis * 2;
+        else if (spell === "lightning bolt") baseDmg = 16 + state.wis * 2;
         else if (spell === "melee swing") baseDmg = state.str * 2 + Math.floor(state.army / 4);
         else baseDmg = state.str + Math.floor(state.army / 4);
         
@@ -3446,21 +4091,21 @@ window.addEventListener("pointerdown", e => {
 
         enemy.hp -= dmg;
         log(`${spell} (Lvl ${lvl}) impacts ${enemy.type} for ${dmg} damage.`);
-        const popColor = spell === "blood burst" ? "#f87171" : (spell === "weapon strike" ? "#fb923c" : (spell === "melee swing" ? "#f97316" : "#c084fc"));
+        const popColor = spell === "fireball" ? "#f97316" : (spell === "lightning bolt" ? "#fbbf24" : (spell === "weapon strike" ? "#fb923c" : (spell === "melee swing" ? "#f97316" : "#c084fc")));
         createDamagePopup(`-${dmg}`, enemy.mesh.position, popColor);
         SoundSystem.playDamage();
         if(enemy.hp <= 0) onEnemySlain(enemy, spell === "weapon strike" || spell === "melee swing");
       }
     });
 
-    if (spell === "blood burst") {
-      const lvl = state.spells["Blood Burst Scroll"] || 1;
+    if (spell === "fireball") {
+      const lvl = state.spells["Fireball Scroll"] || 1;
       const dmg = (12 + state.wis * 2) * lvl;
       prisons.forEach(prison => {
         if (prison.hp > 0 && HexUtils.dist(q, r, prison.q, prison.r) <= 1) {
           prison.hp -= dmg;
-          log(`blood burst (Lvl ${lvl}) impacts the prison cart for ${dmg} damage.`);
-          createDamagePopup(`-${dmg}`, prison.mesh.position, "#f87171");
+          log(`fireball (Lvl ${lvl}) impacts the prison cart for ${dmg} damage.`);
+          createDamagePopup(`-${dmg}`, prison.mesh.position, "#f97316");
           SoundSystem.playDamage();
           if (prison.hp <= 0) {
             prison.mesh.visible = false;
@@ -3699,7 +4344,7 @@ document.getElementById("start-game-btn").addEventListener("click", () => {
   updateMapCoordsDisplay();
   generateWorld(1, 0, 0); updateUI();
   saveCurrentMapToCache();
-  log("<div style='color:#fca5a5; font-size:11px; font-family:var(--font-serif); letter-spacing:1px;'><b>Day 1</b></div>");
+  log("<div style='color:var(--color-gold); font-size:11px; font-family:var(--font-serif); letter-spacing:1px;'><b>Day 1</b></div>");
   log("<b style='color:#fff; font-size:11px;'>Turn 1</b>");
   log("You arrive in Forest Haven.");
 });
