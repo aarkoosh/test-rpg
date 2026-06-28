@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title></title>
-<script>if(sessionStorage.getItem('app_nav')!=='1'){window.location.replace('index.html');}else{sessionStorage.removeItem('app_nav');}</script>
+<script>if(sessionStorage.getItem('app_nav')!=='1'){sessionStorage.removeItem('app_biome');sessionStorage.removeItem('npc_quest_active');sessionStorage.removeItem('npc_quest_killed');sessionStorage.removeItem('npc_quest_completed');sessionStorage.removeItem('npc_quest_rewarded');sessionStorage.removeItem('npc_follower_active');window.location.replace('index.html');}else{sessionStorage.removeItem('app_nav');}</script>
 <link href="https://fonts.googleapis.com/css2?family=Metamorphous&display=swap" rel="stylesheet">
 <style>
   :root { --font-serif: "Georgia", serif; }
@@ -57,7 +57,6 @@
     display: flex;
     gap: 15px;
     z-index: 100;
-    pointer-events: none;
   }
 
   .spell-icon {
@@ -73,6 +72,7 @@
     font-family: 'Metamorphous', cursive;
     font-size: 1.2em;
     transition: all 0.2s ease;
+    pointer-events: auto;
   }
 
   .spell-icon.active {
@@ -82,6 +82,34 @@
     background: rgba(0, 20, 50, 0.8);
     transform: scale(1.1);
   }
+
+  .spell-icon:hover {
+    border-color: #08f;
+    color: #fff;
+    box-shadow: 0 0 18px rgba(0, 150, 255, 0.7);
+    background: rgba(0, 30, 60, 0.85);
+    transform: scale(1.08);
+    cursor: pointer;
+  }
+
+  #spell-tooltip {
+    position: fixed;
+    pointer-events: none;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid #4488cc;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-family: 'Metamorphous', cursive;
+    color: #ccc;
+    font-size: 0.85em;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    white-space: nowrap;
+  }
+  #spell-tooltip.visible { opacity: 1; }
+  #spell-tooltip .tt-name { color: #fff; font-size: 1.2em; margin-bottom: 2px; }
+  #spell-tooltip .tt-stat { color: #aaa; font-size: 0.9em; }
 
   /* Return to Overworld Button */
   #return-overworld-container {
@@ -136,6 +164,50 @@
     background-color: #111;
     color: white;
   }
+  /* Dialogue Overlay */
+  #dialogue-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6); display: none; justify-content: center;
+    align-items: center; z-index: 200; font-family: 'Metamorphous', cursive;
+  }
+  #dialogue-box {
+    background: rgba(10,10,20,0.95); border: 2px solid #4488cc;
+    border-radius: 12px; padding: 28px 36px; max-width: 560px;
+    width: 90%; box-shadow: 0 0 30px rgba(0,100,255,0.3);
+  }
+  #dialogue-name {
+    color: #88bbff; font-size: 1.3em; margin-bottom: 12px;
+    border-bottom: 1px solid #335577; padding-bottom: 8px;
+  }
+  #dialogue-text {
+    color: #ddd; font-size: 1.1em; line-height: 1.5; margin-bottom: 20px;
+    min-height: 60px;
+  }
+  #dialogue-options {
+    display: flex; gap: 12px; flex-wrap: wrap; justify-content: flex-end;
+  }
+  .dialogue-btn {
+    padding: 10px 24px; font-family: 'Metamorphous', cursive; font-size: 1em;
+    background: rgba(0,0,0,0.6); border: 2px solid #4488cc; color: #ccc;
+    border-radius: 6px; cursor: pointer; transition: all 0.2s ease;
+  }
+  .dialogue-btn:hover {
+    background: rgba(0,60,120,0.5); border-color: #66aaff; color: #fff;
+    box-shadow: 0 0 12px rgba(0,100,255,0.5);
+  }
+  /* Quest HUD */
+  #quest-hud {
+    position: fixed; top: 20px; right: 20px; z-index: 100;
+    background: rgba(0,0,0,0.7); border: 2px solid #666;
+    border-radius: 8px; padding: 12px 20px; color: #ddaa44;
+    font-family: 'Metamorphous', cursive; font-size: 1.1em;
+    box-shadow: 0 0 12px rgba(0,0,0,0.5); pointer-events: none;
+    display: none;
+  }
+  #quest-hud.completed {
+    text-decoration: line-through; color: #66dd88;
+    border-color: #66dd88; box-shadow: 0 0 12px rgba(100,220,130,0.3);
+  }
 </style>
 </head>
 <body>
@@ -143,16 +215,26 @@
   <div id="loading-indicator"></div>
 </div>
 <div id="spell-bar">
-  <div id="spell-1" class="spell-icon active">1</div>
-  <div id="spell-2" class="spell-icon">2</div>
-  <div id="spell-3" class="spell-icon">3</div>
+  <div id="spell-1" class="spell-icon active" data-spell="1">1</div>
+  <div id="spell-2" class="spell-icon" data-spell="2">2</div>
+  <div id="spell-3" class="spell-icon" data-spell="3">3</div>
+  <div id="spell-4" class="spell-icon" data-spell="4">4</div>
 </div>
+<div id="spell-tooltip"></div>
 <div id="return-overworld-container">
   <button id="return-overworld-btn">Return to Overworld</button>
 </div>
 <div id="biome-select-container">
   <select id="biome-select"></select>
 </div>
+<div id="dialogue-overlay">
+  <div id="dialogue-box">
+    <div id="dialogue-name">Mysterious Wizard</div>
+    <div id="dialogue-text"></div>
+    <div id="dialogue-options"></div>
+  </div>
+</div>
+<div id="quest-hud">&#9888; Goblins Killed: <span id="quest-counter">0</span>/5</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -237,7 +319,7 @@ const BIOMES = {
   'town': {
     id: 'town', name: 'Town',
     getH: function(pos) {
-      const townHalf = 1000;
+      const townHalf = 800;
       const ax = Math.abs(pos.x);
       const az = Math.abs(pos.z);
       if (ax < townHalf && az < townHalf) {
@@ -269,6 +351,14 @@ const BIOMES = {
           h = Math.min(h, -(2 * (1 - t * t)));
         }
         return h;
+      }
+      // Outside town — slope down from mountain peak instead of abrupt flat drop
+      const outX = Math.max(0, ax - townHalf);
+      const outZ = Math.max(0, az - townHalf);
+      const out = Math.max(outX, outZ);
+      if (out < 80) {
+        const t = out / 80;
+        return 60 * (1 - t) * (1 - t) - 50 * t * t;
       }
       return -50;
     },
@@ -552,6 +642,31 @@ function createChunk(cx, cz) {
   // Deterministic seed for structures
   const seed = Math.abs(Math.sin(cx * 12.9898 + cz * 78.233) * 43758.5453) % 1;
 
+  // For town biome, skip terrain for chunks entirely outside the town
+  if (currentBiomeId === 'town') {
+    const limit = 1000; // townHalf=800 + one chunk width buffer
+    if (Math.abs(cx) * CHUNK_SIZE + CHUNK_SIZE/2 > limit || Math.abs(cz) * CHUNK_SIZE + CHUNK_SIZE/2 > limit) {
+      // Still add town-specific content (walls, etc.) but no terrain
+      generateTownChunk(group, cx, cz);
+      if (group.children.length > 0) {
+        scene.add(group);
+        return {
+          group,
+          dispose: () => {
+            scene.remove(group);
+            group.traverse(c => {
+              const si = staticObjects.indexOf(c);
+              if (si !== -1) staticObjects.splice(si, 1);
+              if (c.isMesh && c.geometry) c.geometry.dispose();
+              if (c.isMesh && c.material) c.material.dispose();
+            });
+          }
+        };
+      }
+      return { group, dispose: () => {} };
+    }
+  }
+
   // 1. Terrain
   const tGeo = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE, 80, 80);
   tGeo.rotateX(-Math.PI / 2);
@@ -756,18 +871,18 @@ function createChunk(cx, cz) {
 }
 
 function generateTownChunk(group, cx, cz) {
-  const townHalf = 1000;
+  const townHalf = 800;
   const wx = cx * CHUNK_SIZE;
   const wz = cz * CHUNK_SIZE;
   const chunkMinX = wx - CHUNK_SIZE/2;
   const chunkMaxX = wx + CHUNK_SIZE/2;
   const chunkMinZ = wz - CHUNK_SIZE/2;
   const chunkMaxZ = wz + CHUNK_SIZE/2;
-  if (chunkMaxX < -townHalf || chunkMinX > townHalf || chunkMaxZ < -townHalf || chunkMinZ > townHalf) return;
+  const outerHalf = townHalf + 80;
+  if (chunkMaxX < -outerHalf || chunkMinX > outerHalf || chunkMaxZ < -outerHalf || chunkMinZ > outerHalf) return;
 
-  // Center tavern + copies around town
+  // Tavern copies around town (center tavern removed — it blocked the fountain area)
   if (cx === 0 && cz === 0) {
-    makeTavern({x: 0, z: 0}, group);
     makeTavern({x: 220, z: 220}, group);
     makeTavern({x: -220, z: 220}, group);
     makeTavern({x: 220, z: -220}, group);
@@ -778,6 +893,7 @@ function generateTownChunk(group, cx, cz) {
   const bColors = [0x8B7355,0xA0896B,0x6B4A2A,0x9B8B7A,0x7A6040,0xBA9F7A,0x5C4033,0x8A7A6A];
   const blockSize = 22;
   const margin = 2.5;
+  const buildingRects = [];
   const grid = 12;
   const gridOff = (grid - 1) / 2;
 
@@ -801,12 +917,14 @@ function generateTownChunk(group, cx, cz) {
       if (Math.abs(xx - rvx) < 35) continue;
       const lkx = -100, lkz = -120;
       if (Math.hypot(xx - lkx, zz - lkz) < 38) continue;
+      if (Math.hypot(xx - (-10), zz - (-8)) < 15) continue;
       makeBuilding({
         x: xx, z: zz, w, d, h,
         type: isRes ? 'residential' : 'commercial',
         rot: (rng() - 0.5) * 0.1,
         col: bColors[Math.floor(rng() * bColors.length)]
       }, group);
+      buildingRects.push({ x: xx, z: zz, w, d });
     }
   }
 
@@ -908,6 +1026,9 @@ function generateTownChunk(group, cx, cz) {
     splash.position.set(fx, fh + 4.35, fz);
     splash.scale.set(1, 0.3, 1);
     group.add(splash);
+
+    // Town NPC near fountain
+    createTownNPC(group);
   }
 
   // Stone ground for flat town area (grey stippled)
@@ -941,6 +1062,11 @@ function generateTownChunk(group, cx, cz) {
     if (ed < 80 || ed > 400) continue;
     const h = getH({x: tx, z: tz});
     if (h > 1) continue;
+    let blocked = false;
+    for (const r of buildingRects) {
+      if (Math.abs(tx - r.x) < r.w / 2 + 1.5 && Math.abs(tz - r.z) < r.d / 2 + 1.5) { blocked = true; break; }
+    }
+    if (blocked) continue;
     _tObj.position.set(tx, h, tz);
     _tObj.rotation.y = Math.random() * Math.PI * 2;
     _tObj.scale.setScalar(currentBiome.treeScaleMin + Math.random() * (currentBiome.treeScaleMax - currentBiome.treeScaleMin));
@@ -1276,9 +1402,19 @@ function makeBuilding(bData, parentGroup) {
     group.add(signBoard);
   }
 
-  group.traverse(c => { if (c.isMesh) staticObjects.push(c); });
+  // Add a single invisible collision box per building instead of individual meshes
+  const bbox = new THREE.Box3().setFromObject(group);
+  const bSize = bbox.getSize(new THREE.Vector3());
+  const bCenter = bbox.getCenter(new THREE.Vector3());
+  if (bSize.x > 0.1 && bSize.z > 0.1) {
+    const collider = new THREE.Mesh(new THREE.BoxGeometry(bSize.x, bSize.y, bSize.z), invisMat);
+    collider.position.copy(bCenter);
+    group.add(collider);
+    staticObjects.push(collider);
+  }
 }
 
+const invisMat = new THREE.MeshBasicMaterial({visible: false});
 const skinM  = new THREE.MeshLambertMaterial({color:0xf0c8a0});
 const robeM  = new THREE.MeshLambertMaterial({color:0x555555});
 const robeAccM = new THREE.MeshLambertMaterial({color:0x444444});
@@ -1335,6 +1471,319 @@ rElbow.add(staffPivot);
 staffPivot.add(staffGroup);
 staffGroup.position.set(.1,-.28,.0);
 staffGroup.rotation.set(0,0,0);
+
+// ---- NPC, Quest, Dialogue & Follower System ----
+
+let lastDamagedEnemy = null;
+
+function createWizardClone(robeColor) {
+  const g = new THREE.Group();
+  const rM = new THREE.MeshLambertMaterial({color: robeColor});
+  const rAM = new THREE.MeshLambertMaterial({color: robeColor - 0x111111});
+  const torso = cone(.28, .36, .65, rM); torso.position.y=1.1; g.add(torso);
+  const hips  = cone(.55, .28, .8, rM); hips.position.y=.7; g.add(hips);
+  const head  = sp(.18,skinM); head.position.y=1.54; g.add(head);
+  const neck  = cy(.072,.12,skinM); neck.position.y=1.38; g.add(neck);
+  const beard = cone(.02, .22, .75, beardM, 6); beard.position.set(0, 1.22, .12); beard.rotation.x = -0.15; g.add(beard);
+  const hatGroup = new THREE.Group(); hatGroup.position.y=1.54; g.add(hatGroup);
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(.38,.38,.04,16), new THREE.MeshLambertMaterial({color:robeColor-0x111111})); brim.position.y=.17; hatGroup.add(brim);
+  const hatCone = cone(.26,.04,0.85,rM,12); hatCone.position.set(0, 0.6, -0.05); hatCone.rotation.x = -0.1; hatGroup.add(hatCone);
+  const lShoulder=new THREE.Group(); lShoulder.position.set(-.29,1.23,0); g.add(lShoulder);
+  const lUA=cone(.16, .13, .31, rM); lUA.position.set(0,-.155,0); lShoulder.add(lUA);
+  const lElbow=new THREE.Group(); lElbow.position.y=-.31; lShoulder.add(lElbow);
+  const lLA=bx(.11,.29,.11,skinM); lLA.position.set(0,-.145,0); lElbow.add(lLA);
+  const rShoulder=new THREE.Group(); rShoulder.position.set(.29,1.23,0); g.add(rShoulder);
+  const rUA=cone(.16, .13, .31, rM); rUA.position.set(0,-.155,0); rShoulder.add(rUA);
+  const rElbow=new THREE.Group(); rElbow.position.y=-.31; rShoulder.add(rElbow);
+  const rLA=bx(.11,.29,.11,skinM); rLA.position.set(0,-.145,0); rElbow.add(rLA);
+  const lHip=new THREE.Group(); lHip.position.set(-.12,.65,0); g.add(lHip);
+  const lThigh=bx(.15,.34,.15,rM); lThigh.position.set(0,-.17,0); lHip.add(lThigh);
+  const lKnee=new THREE.Group(); lKnee.position.y=-.34; lHip.add(lKnee);
+  const lShin=bx(.12,.34,.12,rM); lShin.position.set(0,-.17,0); lKnee.add(lShin);
+  const lFoot=bx(.13,.08,.24,shoeM); lFoot.position.set(0,-.38,.05); lKnee.add(lFoot);
+  const rHip=new THREE.Group(); rHip.position.set(.12,.65,0); g.add(rHip);
+  const rThigh=bx(.15,.34,.15,rM); rThigh.position.set(0,-.17,0); rHip.add(rThigh);
+  const rKnee=new THREE.Group(); rKnee.position.y=-.34; rHip.add(rKnee);
+  const rShin=bx(.12,.34,.12,rM); rShin.position.set(0,-.17,0); rKnee.add(rShin);
+  const rFoot=bx(.13,.08,.24,shoeM); rFoot.position.set(0,-.38,.05); rKnee.add(rFoot);
+  const staffGroup = new THREE.Group();
+  const shaft = cy(.045,1.8,staffWoodM,7); shaft.position.y=.9; staffGroup.add(shaft);
+  const staffPivot = new THREE.Group();
+  staffPivot.position.set(0,-.62,0);
+  rElbow.add(staffPivot);
+  staffPivot.add(staffGroup);
+  staffGroup.position.set(.1,-.28,.0);
+  staffGroup.rotation.set(0,0,0);
+  g.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+  return g;
+}
+
+function roundRect2D(ctx, x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y);
+  ctx.arcTo(x+w, y, x+w, y+r, r); ctx.lineTo(x+w, y+h-r);
+  ctx.arcTo(x+w, y+h, x+w-r, y+h, r); ctx.lineTo(x+r, y+h);
+  ctx.arcTo(x, y+h, x, y+h-r, r); ctx.lineTo(x, y+r);
+  ctx.arcTo(x, y, x+r, y, r); ctx.closePath();
+}
+function makeLabelSprite(text) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024; canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.font = 'bold 56px Georgia, serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const tw = ctx.measureText(text).width;
+  const padX = 50, padY = 24;
+  const rx = canvas.width/2, ry = canvas.height/2, rw = tw/2 + padX, rh = 48 + padY;
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  roundRect2D(ctx, rx - rw, ry - rh, rw*2, rh*2, 18);
+  ctx.fill();
+  ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 16;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(text, rx, ry + 2);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(6, 1.5, 1);
+  return sprite;
+}
+
+// NPC globals
+let npcGroup = null;
+const npcPos = new THREE.Vector3();
+let npcLabelSprite = null;
+
+// Quest state (persisted via sessionStorage)
+const quest = {
+  active: sessionStorage.getItem('npc_quest_active') === 'true',
+  killed: parseInt(sessionStorage.getItem('npc_quest_killed')) || 0,
+  required: 5,
+  completed: sessionStorage.getItem('npc_quest_completed') === 'true',
+  rewarded: sessionStorage.getItem('npc_quest_rewarded') === 'true'
+};
+
+// Dialogue state
+let isInDialogue = false;
+let dialogueState = null;
+
+// Follower globals
+let follower = null;
+const followerPos = new THREE.Vector3();
+let followerRShoulder = null;
+let followerAttackCooldown = 0;
+
+function createTownNPC(parentGroup) {
+  const npc = createWizardClone(0x6666aa);
+  const fx = -10, fz = -12;
+  const fh = Math.max(getH({ x: fx, z: fz }), 0);
+  npc.position.set(fx, fh, fz);
+  npc.rotation.y = Math.PI * 0.25;
+  parentGroup.add(npc);
+  const label = makeLabelSprite('Press E to chat');
+  label.position.set(fx, fh + 3.2, fz);
+  parentGroup.add(label);
+  npcGroup = npc;
+  npcLabelSprite = label;
+  npcPos.set(fx, fh, fz);
+}
+
+function saveQuestState() {
+  sessionStorage.setItem('npc_quest_active', quest.active);
+  sessionStorage.setItem('npc_quest_killed', quest.killed);
+  sessionStorage.setItem('npc_quest_completed', quest.completed);
+  sessionStorage.setItem('npc_quest_rewarded', quest.rewarded);
+}
+
+function updateQuestUI() {
+  const hud = document.getElementById('quest-hud');
+  const counter = document.getElementById('quest-counter');
+  if (quest.active && !quest.rewarded) {
+    hud.style.display = 'block';
+    counter.textContent = quest.killed;
+    if (quest.completed) {
+      hud.classList.add('completed');
+    } else {
+      hud.classList.remove('completed');
+    }
+  } else {
+    hud.style.display = 'none';
+  }
+}
+
+function showDialogue(name, text, buttons) {
+  isInDialogue = true;
+  document.getElementById('dialogue-overlay').style.display = 'flex';
+  document.getElementById('dialogue-name').textContent = name;
+  document.getElementById('dialogue-text').textContent = text;
+  const container = document.getElementById('dialogue-options');
+  container.innerHTML = '';
+  buttons.forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = 'dialogue-btn';
+    btn.textContent = b.label;
+    btn.onclick = b.action;
+    container.appendChild(btn);
+  });
+}
+
+function hideDialogue() {
+  isInDialogue = false;
+  document.getElementById('dialogue-overlay').style.display = 'none';
+}
+
+function showQuestIntro() {
+  showDialogue('Mysterious Wizard', 'Five goblins have been spotted near the town. Slay them and return to me.', [
+    { label: 'Accept', action: acceptQuest },
+    { label: 'Decline', action: declineQuest }
+  ]);
+}
+
+function acceptQuest() {
+  quest.active = true;
+  quest.killed = 0;
+  quest.completed = false;
+  saveQuestState();
+  updateQuestUI();
+  hideDialogue();
+  showDialogue('Mysterious Wizard', 'Go now, and return when the deed is done.', [
+    { label: 'Farewell', action: hideDialogue }
+  ]);
+}
+
+function declineQuest() {
+  hideDialogue();
+  showDialogue('Mysterious Wizard', 'Come find me if you change your mind.', [
+    { label: 'Farewell', action: hideDialogue }
+  ]);
+}
+
+function claimReward() {
+  quest.rewarded = true;
+  saveQuestState();
+  updateQuestUI();
+  createFollower();
+  showDialogue('Mysterious Wizard', 'My companion will follow you now. May they serve you well.', [
+    { label: 'Farewell', action: hideDialogue }
+  ]);
+}
+
+function handleInteraction() {
+  if (!npcGroup || playerPos.distanceTo(npcPos) > 5) return;
+  if (quest.rewarded) {
+    showDialogue('Mysterious Wizard', 'The road ahead is long. Travel safely.', [
+      { label: 'Farewell', action: hideDialogue }
+    ]);
+  } else if (quest.completed && !quest.rewarded) {
+    showDialogue('Mysterious Wizard', 'Excellent work! The town is safer because of you.', [
+      { label: 'Complete Quest', action: claimReward }
+    ]);
+  } else if (quest.active && quest.killed >= quest.required) {
+    quest.completed = true;
+    saveQuestState();
+    updateQuestUI();
+    handleInteraction();
+  } else if (quest.active) {
+    showDialogue('Mysterious Wizard', 'The goblins are still out there. Return when you\'ve slain them all.', [
+      { label: 'I\'m on it', action: hideDialogue }
+    ]);
+  } else {
+    dialogueState = 'GREETING';
+    showDialogue('Mysterious Wizard', 'Greetings, traveller. I have a task for you.', [
+      { label: 'Next', action: showQuestIntro }
+    ]);
+  }
+}
+
+function createFollower() {
+  if (follower) return;
+  const result = createWizardClone(0x4444aa);
+  follower = result;
+  const offset = new THREE.Vector3(-2, 0, -2).applyAxisAngle(new THREE.Vector3(0,1,0), facingYaw);
+  followerPos.copy(playerPos).add(offset);
+  followerPos.y = Math.max(getH(followerPos), 0);
+  follower.position.copy(followerPos);
+  scene.add(follower);
+  sessionStorage.setItem('npc_follower_active', 'true');
+}
+
+function updateFollower(dt) {
+  if (!follower) return;
+  const running = keys['ShiftLeft'] || keys['ShiftRight'];
+  const fSpeed = running ? 25 : 8;
+  const offset = new THREE.Vector3(-2, 0, -2).applyAxisAngle(new THREE.Vector3(0,1,0), facingYaw);
+  const target = playerPos.clone().add(offset);
+  target.y = Math.max(getH(target), 0);
+  followerPos.lerp(target, fSpeed * dt);
+  follower.position.copy(followerPos);
+  const dx = target.x - followerPos.x;
+  const dz = target.z - followerPos.z;
+  if (dx*dx+dz*dz > 0.01) {
+    follower.rotation.y = Math.atan2(dx, dz);
+  }
+  // Walk animation
+  const spd = Math.sqrt(dx*dx+dz*dz);
+  if (spd > 0.3) {
+    const t = performance.now() / 300;
+    // Animate legs - find hip groups by position
+    const subs = follower.children;
+    for (let i = 0; i < subs.length; i++) {
+      const c = subs[i];
+      if (c.position.x < -0.1 && Math.abs(c.position.y - 0.65) < 0.01) c.rotation.x = Math.sin(t) * 0.65;
+      if (c.position.x > 0.1 && Math.abs(c.position.y - 0.65) < 0.01) c.rotation.x = -Math.sin(t) * 0.65;
+    }
+  }
+}
+
+function followerAttack() {
+  if (!follower || followerAttackCooldown > 0) return;
+  let target = null;
+  let isTroll = false;
+  if (lastDamagedEnemy) {
+    const e = lastDamagedEnemy;
+    if (!e.dead) {
+      const d = e.pos.distanceTo(followerPos);
+      if (d < 30) { target = e; isTroll = e.maxHp !== undefined && e.maxHp > 100; }
+    }
+  }
+  if (!target) {
+    let minDist = 31;
+    goblins.forEach(gb => {
+      if (gb.dead) return;
+      const d = gb.pos.distanceTo(followerPos);
+      if (d < minDist) { minDist = d; target = gb; isTroll = false; }
+    });
+    if (!target) {
+      trolls.forEach(tr => {
+        if (tr.dead) return;
+        const d = tr.pos.distanceTo(followerPos);
+        if (d < minDist) { minDist = d; target = tr; isTroll = true; }
+      });
+    }
+  }
+  if (target) {
+    if (isTroll) damageTroll(target, 15);
+    else damageGoblin(target, 15);
+    followerAttackCooldown = 0.8;
+    const subs = follower.children;
+    for (let i = 0; i < subs.length; i++) {
+      const c = subs[i];
+      if (c.position.x > 0.2 && Math.abs(c.position.y - 1.23) < 0.01) {
+        c.rotation.x = -1.5;
+        setTimeout(() => { if (c) c.rotation.x = 0; }, 200);
+        break;
+      }
+    }
+  }
+}
+
+// Restore follower if active
+if (sessionStorage.getItem('npc_follower_active') === 'true' && quest.rewarded) {
+  setTimeout(() => createFollower(), 100);
+}
+
+// ---- End NPC/Quest/Follower System ----
+
 function checkTreeHits(impactPos, radius, damage) {
   activeChunks.forEach((chunk, chunkKey) => {
     const treeParts = chunk.group.children.filter(c => c.isInstancedMesh && c.userData.isTree);
@@ -1454,6 +1903,7 @@ function spawnTornado(targetPos) {
   swinging = false;
   rShoulder.rotation.x = -1.2;
   setTimeout(() => { rShoulder.rotation.x = 0; }, 400);
+  followerAttack();
 }
 
 function updateTornadoes(dt) {
@@ -1613,18 +2063,31 @@ document.addEventListener('keydown',e=>{
     document.getElementById('spell-1').classList.add('active');
     document.getElementById('spell-2').classList.remove('active');
     document.getElementById('spell-3').classList.remove('active');
+    document.getElementById('spell-4').classList.remove('active');
   }
   if (e.code === 'Digit2') {
     selectedSpell = 2;
     document.getElementById('spell-2').classList.add('active');
     document.getElementById('spell-1').classList.remove('active');
     document.getElementById('spell-3').classList.remove('active');
+    document.getElementById('spell-4').classList.remove('active');
   }
   if (e.code === 'Digit3') {
     selectedSpell = 3;
     document.getElementById('spell-3').classList.add('active');
     document.getElementById('spell-1').classList.remove('active');
     document.getElementById('spell-2').classList.remove('active');
+    document.getElementById('spell-4').classList.remove('active');
+  }
+  if (e.code === 'Digit4') {
+    selectedSpell = 4;
+    document.getElementById('spell-4').classList.add('active');
+    document.getElementById('spell-1').classList.remove('active');
+    document.getElementById('spell-2').classList.remove('active');
+    document.getElementById('spell-3').classList.remove('active');
+  }
+  if (e.code === 'KeyE' && !isInDialogue) {
+    handleInteraction();
   }
 });
 document.addEventListener('keyup',e=>{ keys[e.code]=false; });
@@ -1659,9 +2122,15 @@ renderer.domElement.addEventListener('mousedown',e=>{
 window.addEventListener('mouseup',e=>{
   if(e.button===0 && isCharging){
     const held=(performance.now()-chargeStart)/1000;
-    if (selectedSpell === 1) triggerSlam();
+    if (selectedSpell === 1) triggerStaffSwipe();
     else if (selectedSpell === 2) triggerLightning(held);
     else if (selectedSpell === 3) spawnTornado(getMouseGroundTarget());
+    else if (selectedSpell === 4) {
+      const tp = getMouseGroundTarget();
+      tp.y = Math.max(getH(tp), 0);
+      playerPos.copy(tp);
+      spawnTeleportFX(tp);
+    }
     isCharging=false;
 
     if (selectedSpell === 3) {
@@ -1681,17 +2150,18 @@ document.addEventListener('contextmenu',e=>e.preventDefault());
 
 let swingT=0, swinging=false;
 
-function triggerSlam(){
+function triggerStaffSwipe(){
   if(swinging) return;
   swinging=true; swingT=0;
   setTimeout(()=>{
-    checkSlamHitsGoblins();
-    checkSlamHitsTrolls();
+    checkStaffSwipeHitsGoblins();
+    checkStaffSwipeHitsTrolls();
     checkTreeHits(playerPos, 8, 40);
+    followerAttack();
   }, 250);
 }
 
-function updateSlamAnim(dt){
+function updateStaffSwipeAnim(dt){
   if(!swinging) return;
   swingT+=dt*4.0;
   if(swingT < 0.4){
@@ -1730,6 +2200,7 @@ function triggerLightning(holdTime){
   checkLightningHitsGoblins(targetPos, range ? 9.0 : 4.5, range ? 35 : 15);
   checkLightningHitsTrolls(targetPos, range ? 14.0 : 7.0, range ? 60 : 30);
   checkTreeHits(targetPos, range ? 20 : 10, 60);
+  followerAttack();
 
   // Multiple strikes based on hold time: 1 + 1 per second, capped at 20 strikes total
   const totalStrikes = Math.min(20, Math.floor(holdTime) + 1);
@@ -1802,6 +2273,7 @@ function spawnTroll(tx, tz) {
 
 function damageTroll(tr, dmg){
   if(tr.dead) return;
+  lastDamagedEnemy = tr;
   tr.hp -= dmg;
   tr.mesh.group.traverse(c=>{ if(c.isMesh) { c._origMat=c._origMat||c.material; c.material=goblinHitMat; } });
   setTimeout(()=>{ if(!tr.dead) tr.mesh.group.traverse(c=>{ if(c.isMesh&&c._origMat) c.material=c._origMat; }); }, 100);
@@ -1866,7 +2338,7 @@ function updateTrolls(dt, playerPos){
 function checkLightningHitsTrolls(impactPos, radius, dmg){
   trolls.forEach(tr => { if(!tr.dead && tr.pos.distanceTo(impactPos) < radius) damageTroll(tr, dmg); });
 }
-function checkSlamHitsTrolls(){
+function checkStaffSwipeHitsTrolls(){
   trolls.forEach(tr => { if(!tr.dead && tr.pos.distanceTo(playerPos) < 13) damageTroll(tr, 60); });
 }
 
@@ -1970,6 +2442,7 @@ function applyGoblinAttack(m, t){
 }
 function damageGoblin(goblin, dmg){
   if(goblin.dead) return;
+  lastDamagedEnemy = goblin;
   goblin.hp=Math.max(0,goblin.hp-dmg);
   goblin.state=GOBLIN_HIT;
   goblin.hitTimer=0.25;
@@ -1993,6 +2466,12 @@ function killGoblin(goblin){
   goblin.deathVel = push.setY(0).normalize().multiplyScalar(25 + Math.random()*15);
   goblin.deathVel.y = 10 + Math.random() * 10;
   goblin.deathRot = new THREE.Vector3(Math.random()*12, Math.random()*12, Math.random()*12);
+  if (quest.active && !quest.completed) {
+    quest.killed = Math.min(quest.required, quest.killed + 1);
+    if (quest.killed >= quest.required) quest.completed = true;
+    saveQuestState();
+    updateQuestUI();
+  }
 }
 function checkLightningHitsGoblins(impactPos, radius, dmg){
   goblins.forEach(gb=>{
@@ -2001,7 +2480,7 @@ function checkLightningHitsGoblins(impactPos, radius, dmg){
     if(dist<radius) damageGoblin(gb,dmg);
   });
 }
-function checkSlamHitsGoblins(){
+function checkStaffSwipeHitsGoblins(){
   goblins.forEach(gb=>{
     if(gb.dead) return;
     const dist = gb.pos.distanceTo(playerPos);
@@ -2247,13 +2726,26 @@ function animate(){
   const spd=Math.sqrt(velocity.x**2+velocity.z**2);
   if(moving&&spd>.3&&isGrounded){animT+=dt*(running?18:6);applyWalk(animT,spd);}
   else resetWalk();
-  updateSlamAnim(dt);
+  updateStaffSwipeAnim(dt);
   updateLightning(dt);
   updateTornadoes(dt);
   updateGoblins(dt, playerPos);
   updateTrolls(dt, playerPos);
   updateEnvironment(dt);
   updateTreeDebris(dt);
+
+  // NPC proximity check & dialogue auto-close
+  if (npcGroup) {
+    const npcDist = playerPos.distanceTo(npcPos);
+    if (npcLabelSprite) {
+      npcLabelSprite.visible = npcDist < 7 && !isInDialogue && !quest.rewarded;
+    }
+    if (isInDialogue && npcDist > 8) {
+      hideDialogue();
+    }
+  }
+  followerAttackCooldown = Math.max(0, followerAttackCooldown - dt);
+  updateFollower(dt);
 
   // Handle Tree Blinking Reversion
   for (let i = treeBlinks.length - 1; i >= 0; i--) {
@@ -2327,6 +2819,7 @@ camera.position.copy(currentCameraPos);
 camera.lookAt(currentLookAt);
 
 updateChunks(); // Initial load
+updateQuestUI(); // Init quest HUD state from sessionStorage
 
 loadingScreen.classList.add('hidden'); // Start fade out
 loadingScreen.addEventListener('transitionend', () => {
@@ -2338,6 +2831,55 @@ animate(); // Start the game loop
 document.getElementById("return-overworld-btn").addEventListener("click", () => {
   sessionStorage.setItem('app_nav','1'); window.location.href = "overworld.html";
 });
+
+// Spell tooltips and hover effects
+const SPELL_META = {
+  1: { name: 'Staff Swipe', stats: 'Melee AoE • 40 dmg • 6m radius' },
+  2: { name: 'Lightning', stats: 'Ranged strike • 25-60 dmg • Hold to charge' },
+  3: { name: 'Tornado', stats: 'Summon vortex • Pulls & damages foes • 8s duration' },
+  4: { name: 'Teleport', stats: 'Instant travel to target location • 2000m range' },
+};
+const tooltipEl = document.getElementById('spell-tooltip');
+document.querySelectorAll('.spell-icon').forEach(el => {
+  el.addEventListener('mouseenter', e => {
+    const id = parseInt(el.dataset.spell, 10);
+    const m = SPELL_META[id];
+    if (m) tooltipEl.innerHTML = `<div class="tt-name">${m.name}</div><div class="tt-stat">${m.stats}</div>`;
+    const r = el.getBoundingClientRect();
+    tooltipEl.style.left = (r.left + r.width/2) + 'px';
+    tooltipEl.style.top = (r.top - 8) + 'px';
+    tooltipEl.style.transform = 'translate(-50%, -100%)';
+    tooltipEl.classList.add('visible');
+  });
+  el.addEventListener('mouseleave', () => tooltipEl.classList.remove('visible'));
+});
+
+// Teleport visual effect (ring flash at destination)
+function spawnTeleportFX(pos) {
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.2, 2, 24), new THREE.MeshBasicMaterial({color: 0x88ddff, transparent: true, opacity: 1, side: THREE.DoubleSide, blending: THREE.AdditiveBlending}));
+  ring.position.copy(pos);
+  ring.position.y += 0.1;
+  ring.rotation.x = -Math.PI/2;
+  scene.add(ring);
+  const flash = new THREE.PointLight(0x88ddff, 20, 40);
+  flash.position.copy(pos);
+  flash.position.y += 2;
+  scene.add(flash);
+  let age = 0;
+  const maxAge = 0.6;
+  const anim = setInterval(() => {
+    age += 1/60;
+    const t = 1 - age/maxAge;
+    ring.scale.setScalar(1 + (1-t)*4);
+    ring.material.opacity = t;
+    flash.intensity = t * 20;
+    if (age >= maxAge) {
+      scene.remove(ring); ring.material.dispose();
+      scene.remove(flash);
+      clearInterval(anim);
+    }
+  }, 1000/60);
+}
 
 // Biome dropdown
 const biomeSelect = document.getElementById('biome-select');

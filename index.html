@@ -446,10 +446,12 @@
     });
 
     // Any click on title screen starts game
-    document.addEventListener('click', () => {
+    document.addEventListener('click', (event) => {
       const ts = document.getElementById('title-screen');
       if (ts && ts.style.display !== 'none' && ts.style.display !== '') {
         startGame();
+      } else if (!isTransitioning && !isHovering) {
+        startTransition();
       }
     });
 
