@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title></title>
+<title>Open World RPG</title>
 <script>if(sessionStorage.getItem('app_nav')!=='1'){sessionStorage.removeItem('app_biome');sessionStorage.removeItem('npc_quest_active');sessionStorage.removeItem('npc_quest_killed');sessionStorage.removeItem('npc_quest_completed');sessionStorage.removeItem('npc_quest_rewarded');sessionStorage.removeItem('npc_follower_active');window.location.replace('index.html');}else{sessionStorage.removeItem('app_nav');}</script>
 <link href="https://fonts.googleapis.com/css2?family=Metamorphous&display=swap" rel="stylesheet">
 <style>
@@ -55,9 +55,13 @@
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    gap: 15px;
+    gap: 12px;
     z-index: 100;
+    align-items: center;
   }
+
+  .orb { width: 110px; height: 110px; cursor: pointer; flex-shrink: 0; }
+  .orb svg { width: 100%; height: 100%; display: block; }
 
   .spell-icon {
     width: 60px;
@@ -208,6 +212,16 @@
     text-decoration: line-through; color: #66dd88;
     border-color: #66dd88; box-shadow: 0 0 12px rgba(100,220,130,0.3);
   }
+
+  #orb-tooltip {
+    position: fixed; pointer-events: none; z-index: 200;
+    background: rgba(0,0,0,0.85); border: 1px solid #4488cc;
+    border-radius: 6px; padding: 6px 12px;
+    font-family: 'Metamorphous', cursive; color: #ccc;
+    font-size: 0.85em; opacity: 0; transition: opacity 0.15s ease;
+    white-space: nowrap;
+  }
+  #orb-tooltip.visible { opacity: 1; }
 </style>
 </head>
 <body>
@@ -215,12 +229,30 @@
   <div id="loading-indicator"></div>
 </div>
 <div id="spell-bar">
+  <div class="orb" id="hp-orb">
+    <svg viewBox="0 0 64 64">
+      <defs><clipPath id="hp-clip"><rect id="hp-clip-rect" x="0" y="4" width="64" height="56"/></clipPath></defs>
+      <circle cx="32" cy="32" r="28" fill="#1a1a1a" stroke="#333" stroke-width="2"/>
+      <circle cx="32" cy="32" r="28" fill="#22c55e" clip-path="url(#hp-clip)"/>
+      <circle cx="32" cy="32" r="28" fill="none" stroke="#22c55e" stroke-width="2" opacity="0.4"/>
+    </svg>
+  </div>
   <div id="spell-1" class="spell-icon active" data-spell="1">1</div>
   <div id="spell-2" class="spell-icon" data-spell="2">2</div>
   <div id="spell-3" class="spell-icon" data-spell="3">3</div>
   <div id="spell-4" class="spell-icon" data-spell="4">4</div>
+  <div id="spell-5" class="spell-icon" data-spell="5">5</div>
+  <div class="orb" id="mana-orb">
+    <svg viewBox="0 0 64 64">
+      <defs><clipPath id="mana-clip"><rect id="mana-clip-rect" x="0" y="4" width="64" height="56"/></clipPath></defs>
+      <circle cx="32" cy="32" r="28" fill="#1a1a1a" stroke="#333" stroke-width="2"/>
+      <circle cx="32" cy="32" r="28" fill="#3b82f6" clip-path="url(#mana-clip)"/>
+      <circle cx="32" cy="32" r="28" fill="none" stroke="#3b82f6" stroke-width="2" opacity="0.4"/>
+    </svg>
+  </div>
 </div>
 <div id="spell-tooltip"></div>
+<div id="orb-tooltip"></div>
 <div id="return-overworld-container">
   <button id="return-overworld-btn">Return to Overworld</button>
 </div>
@@ -235,7 +267,7 @@
   </div>
 </div>
 <div id="quest-hud">&#9888; Goblins Killed: <span id="quest-counter">0</span>/5</div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" onerror="this.dataset.fail='1';document.body.innerHTML='<div style=color:#fff;padding:40px;font-family:sans-serif;text-align:center><h1>Failed to load 3D engine</h1><p>Please check your internet connection and reload.</p></div>'"></script>
 <script>
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -284,6 +316,7 @@ const BIOMES = {
     ambientColor: 0x504840, ambientIntensityBase: 0.5,
     hemiSkyColor: 0xffccaa, hemiGroundColor: 0x403020, hemiIntensityBase: 0.6,
     goblinCount: 6, trollChance: 0.02,
+    wretchCount: 2, huskCount: 1, zombieCount: 1,
   },
   'scorched-wastes': {
     id: 'scorched-wastes', name: 'Infinite Desert',
@@ -315,24 +348,31 @@ const BIOMES = {
     ambientColor: 0x603020, ambientIntensityBase: 0.3,
     hemiSkyColor: 0xd48844, hemiGroundColor: 0x402010, hemiIntensityBase: 0.3,
     goblinCount: 8, trollChance: 0.04,
+    wretchCount: 1, zombieCount: 2, rangerCount: 1,
   },
   'town': {
     id: 'town', name: 'Town',
     getH: function(pos) {
       const townHalf = 800;
+      const mountRange = 250;
       const ax = Math.abs(pos.x);
       const az = Math.abs(pos.z);
       if (ax < townHalf && az < townHalf) {
         const dx = townHalf - ax;
         const dz = townHalf - az;
         const edgeDist = Math.min(dx, dz);
-        let h;
-        if (edgeDist < 80) {
-          const base = Math.pow(1 - edgeDist / 80, 2) * 60;
-          const n = (Math.sin(pos.x*0.012)*Math.cos(pos.z*0.009)+Math.sin(pos.x*0.018+pos.z*0.014)*0.3)*12;
-          h = Math.max(0, base + n);
-        } else {
-          h = 0;
+        let h = 0;
+        if (edgeDist < mountRange) {
+          const tx = pos.x + terrainOffset.x;
+          const tz = pos.z + terrainOffset.z;
+          let mn = Math.sin(tx*0.004)*Math.sin(tz*0.004+Math.sin(tx*0.002));
+          mn += (Math.sin(tx*0.011)*Math.cos(tz*0.009))*0.4;
+          mn += (Math.sin(tx*0.025)*Math.sin(tz*0.031))*0.18;
+          mn += (Math.cos(tx*0.07)*Math.sin(tz*0.08))*0.06;
+          let mh = 0;
+          if (mn > 0.15) mh += Math.pow((mn-0.15),1.3)*120;
+          const b = 1 - edgeDist/mountRange;
+          h = mh * b*b*(3-2*b);
         }
         const rvx = townRiverX(pos.z);
         const dxRiver = pos.x - rvx;
@@ -342,7 +382,6 @@ const BIOMES = {
           const channelDepth = 5 * (1 - t * t);
           h = Math.max(-10, Math.min(h, -channelDepth));
         }
-        // Lake at southwest of center
         const lkx = -100, lkz = -120, lkR = 40;
         const dlx = pos.x - lkx, dlz = pos.z - lkz;
         const lkDist = Math.sqrt(dlx * dlx + dlz * dlz);
@@ -352,7 +391,6 @@ const BIOMES = {
         }
         return h;
       }
-      // Outside town — slope down from mountain peak instead of abrupt flat drop
       const outX = Math.max(0, ax - townHalf);
       const outZ = Math.max(0, az - townHalf);
       const out = Math.max(outX, outZ);
@@ -375,6 +413,130 @@ const BIOMES = {
     ambientColor: 0x504840, ambientIntensityBase: 0.5,
     hemiSkyColor: 0xffccaa, hemiGroundColor: 0x403020, hemiIntensityBase: 0.6,
     goblinCount: 0, trollChance: 0,
+    wretchCount: 0, huskCount: 0, zombieCount: 0, rangerCount: 0, iceElementalCount: 0,
+  },
+  'dungeon': {
+    id:'dungeon', name:'Dungeon',
+    getH:function(pos){
+      const hf=200;
+      const ax=Math.abs(pos.x);const az=Math.abs(pos.z);
+      if(ax<hf&&az<hf){
+        const dx=hf-ax;const dz=hf-az;
+        const ed=Math.min(dx,dz);
+        let h=0;
+        if(ed<40){const t=ed/40;h=(1-t)*(1-t)*15;}
+        const wallDist=Math.min(ax,az);
+        if(wallDist<20){const t=wallDist/20;h=Math.max(h,(1-t)*15+5);}
+        return h;
+      }
+      return -20;
+    },
+    snowHeight:200,snowColor:0xffffff,rockHeight:3,rockColor:0x3a3a4a,
+    dirtHeight:3,dirtColor:0x2a2a3a,grassColor:0x1a1a2a,waterBedColor:0x0a0a15,
+    pathColor:0x5d4037,pathEnabled:false,bridgeEnabled:false,
+    maxTreeAttempts:0,treeDensityThreshold:1.0,
+    treeBarkHSL:[0,0,0.1],treeFoliageHSL:[0,0,0.1],treeTipHSL:[0,0,0.1],
+    treeScaleMin:0.5,treeScaleMax:1.0,
+    waterColor:0x0a0a15,waterOpacity:0,waterLevel:-20,
+    skyNight:0x050510,skyDay:0x050510,skyDusk:0x050510,
+    sunColor:0x444466,sunIntensity:0.3,sunVisualColor:0x444466,
+    moonColor:0x444466,moonIntensity:0.1,
+    ambientColor:0x15152a,ambientIntensityBase:0.2,
+    hemiSkyColor:0x222244,hemiGroundColor:0x0a0a15,hemiIntensityBase:0.15,
+    goblinCount:0,trollChance:0,
+    wretchCount:3,huskCount:2,zombieCount:3,rangerCount:0,iceElementalCount:0,
+  },
+  'snow-mountains': {
+    id:'snow-mountains', name:'Snow Mountains',
+    getH:function(pos){
+      const hf=500;
+      const ax=Math.abs(pos.x);const az=Math.abs(pos.z);
+      if(ax<hf&&az<hf){
+        const tx=pos.x+terrainOffset.x,tz=pos.z+terrainOffset.z;
+        let mn=Math.sin(tx*0.004)*Math.sin(tz*0.004+Math.sin(tx*0.002));
+        mn+=(Math.sin(tx*0.011)*Math.cos(tz*0.009))*0.4;
+        mn+=(Math.sin(tx*0.025)*Math.sin(tz*0.031))*0.18;
+        mn+=(Math.cos(tx*0.07)*Math.sin(tz*0.08))*0.06;
+        let h=12;
+        if(mn>0.1)h+=Math.pow((mn-0.1),1.2)*160;
+        const sDistSq=pos.x*pos.x+pos.z*pos.z;
+        if(sDistSq<160000){const sFactor=1-Math.min(Math.sqrt(sDistSq)/400,1);h=h*(1-sFactor)+(8+sFactor*2)*sFactor;}
+        return h;
+      }
+      return -30;
+    },
+    snowHeight:0,snowColor:0xffffff,rockHeight:20,rockColor:0x8899aa,
+    dirtHeight:0,dirtColor:0xeeeeff,grassColor:0xddddff,waterBedColor:0x2a3a4a,
+    pathColor:0x5d4037,pathEnabled:false,bridgeEnabled:false,
+    maxTreeAttempts:0,treeDensityThreshold:1.0,
+    treeBarkHSL:[0.07,0.4,0.1],treeFoliageHSL:[0.28,0.6,0.15],treeTipHSL:[0.3,0.6,0.15],
+    treeScaleMin:0.7,treeScaleMax:1.4,
+    waterColor:0x4488aa,waterOpacity:0.3,waterLevel:-3,
+    skyNight:0x0a0a2a,skyDay:0x88bbdd,skyDusk:0x6a5a7a,
+    sunColor:0xffddaa,sunIntensity:2.5,sunVisualColor:0xffeecc,
+    moonColor:0xaaaaff,moonIntensity:0.8,
+    ambientColor:0x606880,ambientIntensityBase:0.5,
+    hemiSkyColor:0xccddff,hemiGroundColor:0x446688,hemiIntensityBase:0.5,
+    goblinCount:0,trollChance:0,
+    wretchCount:0,huskCount:0,zombieCount:0,rangerCount:2,iceElementalCount:2,
+  },
+  'countryside': {
+    id:'countryside', name:'Countryside',
+    getH:function(pos){
+      const tx=pos.x+terrainOffset.x,tz=pos.z+terrainOffset.z;
+      let h=2+Math.sin(tx*0.008)*Math.cos(tz*0.006)*3;
+      h+=Math.sin(tx*0.02+tz*0.015)*0.8;
+      return Math.max(0,h);
+    },
+    snowHeight:60,snowColor:0xffffff,rockHeight:40,rockColor:0x888888,
+    dirtHeight:2,dirtColor:0x6b4a2a,grassColor:0x5a8a4a,waterBedColor:0x2a3a2a,
+    pathColor:0x5d4037,pathEnabled:true,bridgeEnabled:false,
+    maxTreeAttempts:60,treeDensityThreshold:0.5,
+    treeBarkHSL:[0.07,0.4,0.1],treeFoliageHSL:[0.28,0.6,0.15],treeTipHSL:[0.3,0.6,0.15],
+    treeScaleMin:0.8,treeScaleMax:1.3,
+    waterColor:0x3366aa,waterOpacity:0.5,waterLevel:-1,
+    skyNight:0x0a0a18,skyDay:0x88ccee,skyDusk:0x6a4a3a,
+    sunColor:0xffcc66,sunIntensity:2.0,sunVisualColor:0xffee88,
+    moonColor:0xaaaaff,moonIntensity:0.6,
+    ambientColor:0x606850,ambientIntensityBase:0.5,
+    hemiSkyColor:0xddeeff,hemiGroundColor:0x5a6a3a,hemiIntensityBase:0.6,
+    goblinCount:3,trollChance:0.05,
+    wretchCount:0,huskCount:1,zombieCount:0,rangerCount:0,iceElementalCount:0,
+  },
+  'port-town': {
+    id:'port-town', name:'Port Town',
+    getH:function(pos){
+      const hf=500;const ax=Math.abs(pos.x);const az=Math.abs(pos.z);
+      if(ax<hf&&az<hf){
+        let h=Math.sin(pos.x*0.005)*Math.cos(pos.z*0.005)*0.5;
+        const waterDist=Math.max(ax,az);
+        if(waterDist>400){const t=(waterDist-400)/100;h-=t*8;}
+        // Pier areas: flat platforms
+        for(let px=-300;px<=300;px+=200)for(let pz=-300;pz<=300;pz+=200){
+          const ddx=pos.x-px,ddz=pos.z-pz;
+          if(Math.abs(ddx)<30&&Math.abs(ddz)<30)h=Math.max(h,0.5);
+        }
+        // Small island hills
+        h+=Math.sin(pos.x*0.015)*Math.cos(pos.z*0.012)*2;
+        h+=Math.sin(pos.x*0.03+pos.z*0.025)*0.5;
+        return h;
+      }
+      return -10;
+    },
+    snowHeight:60,snowColor:0xffffff,rockHeight:30,rockColor:0x667788,
+    dirtHeight:1.5,dirtColor:0x8a7a5a,grassColor:0x5a7a5a,waterBedColor:0x1a2a3a,
+    pathColor:0x5d4037,pathEnabled:false,bridgeEnabled:false,
+    maxTreeAttempts:0,treeDensityThreshold:1.0,
+    treeBarkHSL:[0.07,0.4,0.1],treeFoliageHSL:[0.28,0.6,0.15],treeTipHSL:[0.3,0.6,0.15],
+    treeScaleMin:0.7,treeScaleMax:1.4,
+    waterColor:0x2a5a8a,waterOpacity:0.5,waterLevel:-0.8,
+    skyNight:0x0a0a1a,skyDay:0x88aacc,skyDusk:0x6a5a5a,
+    sunColor:0xffaa66,sunIntensity:1.5,sunVisualColor:0xffcc88,
+    moonColor:0xaaaaff,moonIntensity:0.5,
+    ambientColor:0x505060,ambientIntensityBase:0.4,
+    hemiSkyColor:0xaaccee,hemiGroundColor:0x404860,hemiIntensityBase:0.4,
+    goblinCount:4,trollChance:0.08,
+    wretchCount:1,huskCount:0,zombieCount:0,rangerCount:1,iceElementalCount:0,
   },
 };
 
@@ -426,6 +588,35 @@ starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
 const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color:0xffffff, size:0.4, transparent:true, opacity:0}));
 scene.add(stars);
 
+// Rain system
+const rainCount = 3000;
+const rainGeo = new THREE.BufferGeometry();
+const rainPos = new Float32Array(rainCount * 3);
+for(let i=0;i<rainCount;i++){rainPos[i*3]=(Math.random()-0.5)*200;rainPos[i*3+1]=Math.random()*100;rainPos[i*3+2]=(Math.random()-0.5)*200;}
+rainGeo.setAttribute('position',new THREE.BufferAttribute(rainPos,3));
+const rainMat = new THREE.PointsMaterial({color:0x8888ff, size:0.08, transparent:true, opacity:0.4});
+const rainSystem = new THREE.Points(rainGeo, rainMat);
+const rainActive = currentBiomeId === 'port-town' || currentBiomeId === 'dungeon';
+if (rainActive) scene.add(rainSystem);
+
+// Dungeon fog
+if (currentBiomeId === 'dungeon') {
+  scene.fog = new THREE.FogExp2(0x0a0a15, 0.008);
+  scene.background = new THREE.Color(0x0a0a15);
+}
+
+// Dungeon ambient particles (dust/fireflies)
+const dustCount = 500;
+const dustGeo = new THREE.BufferGeometry();
+const dustPos = new Float32Array(dustCount * 3);
+const dustVel = [];
+for(let i=0;i<dustCount;i++){dustPos[i*3]=(Math.random()-0.5)*400;dustPos[i*3+1]=Math.random()*50;dustPos[i*3+2]=(Math.random()-0.5)*400;dustVel.push((Math.random()-0.5)*0.5,(Math.random()*0.3+0.1),(Math.random()-0.5)*0.5);}
+dustGeo.setAttribute('position',new THREE.BufferAttribute(dustPos,3));
+const dustMat = new THREE.PointsMaterial({color:currentBiomeId==='dungeon'?0x444466:0x88aacc, size:0.15, transparent:true, opacity:currentBiomeId==='dungeon'?0.3:0.15});
+const dustSystem = new THREE.Points(dustGeo, dustMat);
+const dustActive = currentBiomeId === 'dungeon' || currentBiomeId === 'port-town';
+if (dustActive) scene.add(dustSystem);
+
 let envAccum = 0;
 function updateEnvironment(dt) {
   gameTime = (gameTime + dt / 60) % 24;
@@ -464,9 +655,10 @@ function updateEnvironment(dt) {
 }
 
 function getRandomDir() {
-  const v = new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1);
-  if (v.lengthSq() < 0.001) return getRandomDir();
-  return v.normalize();
+  while (true) {
+    const v = new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1);
+    if (v.lengthSq() >= 0.001) return v.normalize();
+  }
 }
 
 const treeHealth = new Map();
@@ -638,6 +830,11 @@ function createChunk(cx, cz) {
   const zOffset = cz * CHUNK_SIZE;
   const chunkGoblins = [];
   const chunkTrolls = [];
+  const chunkWretches = [];
+  const chunkHusks = [];
+  const chunkZombies = [];
+  const chunkRangers = [];
+  const chunkIceElementals = [];
 
   // Deterministic seed for structures
   const seed = Math.abs(Math.sin(cx * 12.9898 + cz * 78.233) * 43758.5453) % 1;
@@ -668,7 +865,8 @@ function createChunk(cx, cz) {
   }
 
   // 1. Terrain
-  const tGeo = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE, 80, 80);
+  const tSegs = currentBiomeId === 'town' ? 160 : 80;
+  const tGeo = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE, tSegs, tSegs);
   tGeo.rotateX(-Math.PI / 2);
   const tp = tGeo.attributes.position;
   const colors = [];
@@ -835,6 +1033,82 @@ function createChunk(cx, cz) {
       const tr = spawnTroll(xOffset + (Math.random() - 0.5) * 100, zOffset + (Math.random() - 0.5) * 100);
       if(tr) chunkTrolls.push(tr);
     }
+    const wCount = currentBiome.wretchCount || 0;
+    for(let i=0;i<wCount;i++){const gx=xOffset+(Math.random()-0.5)*CHUNK_SIZE;const gz=zOffset+(Math.random()-0.5)*CHUNK_SIZE;const e=spawnWretch(gx,gz);if(e)chunkWretches.push(e);}
+    const hCount = currentBiome.huskCount || 0;
+    for(let i=0;i<hCount;i++){const gx=xOffset+(Math.random()-0.5)*CHUNK_SIZE;const gz=zOffset+(Math.random()-0.5)*CHUNK_SIZE;const e=spawnHusk(gx,gz);if(e)chunkHusks.push(e);}
+    const zCount = currentBiome.zombieCount || 0;
+    for(let i=0;i<zCount;i++){const gx=xOffset+(Math.random()-0.5)*CHUNK_SIZE;const gz=zOffset+(Math.random()-0.5)*CHUNK_SIZE;const e=spawnZombie(gx,gz);if(e)chunkZombies.push(e);}
+    const rCount = currentBiome.rangerCount || 0;
+    for(let i=0;i<rCount;i++){const gx=xOffset+(Math.random()-0.5)*CHUNK_SIZE;const gz=zOffset+(Math.random()-0.5)*CHUNK_SIZE;const e=spawnRanger(gx,gz);if(e)chunkRangers.push(e);}
+    const iCount = currentBiome.iceElementalCount || 0;
+    for(let i=0;i<iCount;i++){const gx=xOffset+(Math.random()-0.5)*CHUNK_SIZE;const gz=zOffset+(Math.random()-0.5)*CHUNK_SIZE;const e=spawnIceElemental(gx,gz);if(e)chunkIceElementals.push(e);}
+  }
+
+  // Biome-specific decorations
+  if (currentBiomeId === 'snow-mountains') {
+    const campfireCount = Math.floor(seed * 3);
+    for (let i = 0; i < campfireCount; i++) {
+      const fx = xOffset + (Math.random() - 0.5) * CHUNK_SIZE;
+      const fz = zOffset + (Math.random() - 0.5) * CHUNK_SIZE;
+      const fh = Math.max(getH({x: fx, z: fz}), 0);
+      if (fh > 5 && fh < 30) {
+        const fire = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.6, 0.2, 8), new THREE.MeshLambertMaterial({color: 0x8B4513}));
+        fire.position.set(fx, fh, fz); group.add(fire);
+        const flames = new THREE.Mesh(new THREE.ConeGeometry(0.4, 0.6, 6), new THREE.MeshBasicMaterial({color: 0xff6600, transparent: true, opacity: 0.7}));
+        flames.position.set(fx, fh + 0.3, fz); group.add(flames);
+        const glow = new THREE.PointLight(0xff6600, 3, 15);
+        glow.position.set(fx, fh + 0.5, fz); group.add(glow);
+      }
+    }
+  }
+
+  if (currentBiomeId === 'countryside') {
+    const fieldCount = Math.floor(seed * 6) + 2;
+    const cropMat = new THREE.MeshLambertMaterial({color: 0x8aac3a});
+    const cropGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.4, 4);
+    for (let i = 0; i < fieldCount; i++) {
+      const fx = xOffset + (Math.random() - 0.5) * CHUNK_SIZE * 0.8;
+      const fz = zOffset + (Math.random() - 0.5) * CHUNK_SIZE * 0.8;
+      const fh = Math.max(getH({x: fx, z: fz}), 0);
+      if (fh < 4) {
+        for (let r = 0; r < 20; r++) {
+          const crop = new THREE.Mesh(cropGeo, cropMat);
+          crop.position.set(fx + (Math.random() - 0.5) * 5, fh, fz + (Math.random() - 0.5) * 5);
+          crop.rotation.set(Math.random() * 0.3, Math.random() * Math.PI * 2, 0);
+          group.add(crop);
+        }
+        const barn = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 3), new THREE.MeshLambertMaterial({color: 0x8B4513}));
+        barn.position.set(fx + 6, fh + 1.5, fz); group.add(barn);
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(2.8, 2, 4), new THREE.MeshLambertMaterial({color: 0xcc5533}));
+        roof.position.set(fx + 6, fh + 4, fz); roof.rotation.y = Math.PI/4; group.add(roof);
+      }
+    }
+  }
+
+  if (currentBiomeId === 'port-town') {
+    const pierMat = new THREE.MeshLambertMaterial({color: 0x6b4a2a});
+    const pierPositions = [];
+    for (let px = -300; px <= 300; px += 150) for (let pz = -300; pz <= 300; pz += 150) {
+      if (Math.abs(px) < 50 && Math.abs(pz) < 50) continue;
+      const ph = Math.max(getH({x: px, z: pz}), 0);
+      if (ph < 1) {
+        pierPositions.push({x: px, z: pz});
+        const deck = new THREE.Mesh(new THREE.BoxGeometry(10, 0.3, 6), pierMat);
+        deck.position.set(px, ph + 0.15, pz); group.add(deck); staticObjects.push(deck);
+        for (let p = -4; p <= 4; p += 2) {
+          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 2, 6), pierMat);
+          post.position.set(px + p, ph - 1, pz); group.add(post);
+        }
+      }
+    }
+    if (pierPositions.length > 0) {
+      const sp = pierPositions[Math.floor(Math.random() * pierPositions.length)];
+      const boat = new THREE.Mesh(new THREE.BoxGeometry(4, 1.5, 2), new THREE.MeshLambertMaterial({color: 0x4a2a0a}));
+      boat.position.set(sp.x + 3, Math.max(getH({x: sp.x+3, z: sp.z}), 0) + 0.5, sp.z); group.add(boat);
+      const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3, 6), new THREE.MeshLambertMaterial({color: 0x8B7355}));
+      mast.position.set(sp.x + 3, Math.max(getH({x: sp.x+3, z: sp.z}), 0) + 2, sp.z); group.add(mast);
+    }
   }
 
   scene.add(group);
@@ -865,7 +1139,17 @@ function createChunk(cx, cz) {
         if (idx !== -1) { scene.remove(t.mesh.group); trolls.splice(idx, 1); }
       });
 
-      // tGeo is already disposed via the traverse loop above
+      const cleanupEnemy = (arr, globalArr) => {
+        arr.forEach(e => {
+          const idx = globalArr.indexOf(e);
+          if (idx !== -1) { scene.remove(e.mesh.group); globalArr.splice(idx, 1); }
+        });
+      };
+      cleanupEnemy(chunkWretches, wretches);
+      cleanupEnemy(chunkHusks, husks);
+      cleanupEnemy(chunkZombies, zombies);
+      cleanupEnemy(chunkRangers, rangers);
+      cleanupEnemy(chunkIceElementals, iceElementals);
     }
   };
 }
@@ -904,7 +1188,7 @@ function generateTownChunk(group, cx, cz) {
       if (Math.abs(worldX) > townHalf - margin || Math.abs(worldZ) > townHalf - margin) continue;
       if (cx === 0 && cz === 0 && Math.abs(worldX) < 18 && Math.abs(worldZ) < 18) continue;
       const ed = Math.min(townHalf - Math.abs(worldX), townHalf - Math.abs(worldZ));
-      if (ed < 80) continue;
+      if (ed < 250) continue;
       if (rng() > 0.55) continue;
       const isRes = rng() > 0.3;
       let w, d, h;
@@ -1059,7 +1343,7 @@ function generateTownChunk(group, cx, cz) {
     const ax = Math.abs(tx), az = Math.abs(tz);
     if (ax > townHalf || az > townHalf) continue;
     const ed = Math.min(townHalf - ax, townHalf - az);
-    if (ed < 80 || ed > 400) continue;
+    if (ed < 250 || ed > 400) continue;
     const h = getH({x: tx, z: tz});
     if (h > 1) continue;
     let blocked = false;
@@ -1242,6 +1526,7 @@ function makeTavern(pos, parentGroup) {
   return rData;
 }
 
+const invisMat = new THREE.MeshBasicMaterial({visible: false});
 function makeBuilding(bData, parentGroup) {
   const pos = new THREE.Vector3(bData.x, 0, bData.z);
   pos.y = Math.max(getH(pos), 0);
@@ -1414,7 +1699,6 @@ function makeBuilding(bData, parentGroup) {
   }
 }
 
-const invisMat = new THREE.MeshBasicMaterial({visible: false});
 const skinM  = new THREE.MeshLambertMaterial({color:0xf0c8a0});
 const robeM  = new THREE.MeshLambertMaterial({color:0x555555});
 const robeAccM = new THREE.MeshLambertMaterial({color:0x444444});
@@ -1668,8 +1952,11 @@ function claimReward() {
   ]);
 }
 
+let _handlingInteraction = false;
 function handleInteraction() {
   if (!npcGroup || playerPos.distanceTo(npcPos) > 5) return;
+  if (_handlingInteraction) return;
+  _handlingInteraction = true;
   if (quest.rewarded) {
     showDialogue('Mysterious Wizard', 'The road ahead is long. Travel safely.', [
       { label: 'Farewell', action: hideDialogue }
@@ -1682,7 +1969,9 @@ function handleInteraction() {
     quest.completed = true;
     saveQuestState();
     updateQuestUI();
-    handleInteraction();
+    _handlingInteraction = false;
+    setTimeout(handleInteraction, 0);
+    return;
   } else if (quest.active) {
     showDialogue('Mysterious Wizard', 'The goblins are still out there. Return when you\'ve slain them all.', [
       { label: 'I\'m on it', action: hideDialogue }
@@ -1693,6 +1982,7 @@ function handleInteraction() {
       { label: 'Next', action: showQuestIntro }
     ]);
   }
+  _handlingInteraction = false;
 }
 
 function createFollower() {
@@ -1947,6 +2237,7 @@ function updateTornadoes(dt) {
       checkRuinHits(t.pos, 45, t.pos);
       checkLightningHitsGoblins(t.pos, 45, 3); // Continuous damage in wider radius
       checkLightningHitsTrolls(t.pos, 45, 5);
+      damageEnemiesInRange(t.pos, 45, 3);
     }
 
     if (t.life <= 0) {
@@ -2053,39 +2344,26 @@ let camYaw=Math.PI, camPitch=0.3, camDist=15;
 let targetYaw = 0;
 let camShake=0;
 let selectedSpell = 1;
+function selectSpell(n) {
+  for (let s = 1; s <= 5; s++) {
+    const el = document.getElementById('spell-' + s);
+    if (el) el.classList.remove('active');
+  }
+  const el = document.getElementById('spell-' + n);
+  if (el) el.classList.add('active');
+}
 
-const CAM_MIN=1.5, CAM_MAX=60;
+const CAM_MIN=5, CAM_MAX=120;
 const keys={};
 document.addEventListener('keydown',e=>{
   keys[e.code]=true;
-  if (e.code === 'Digit1') {
-    selectedSpell = 1;
-    document.getElementById('spell-1').classList.add('active');
-    document.getElementById('spell-2').classList.remove('active');
-    document.getElementById('spell-3').classList.remove('active');
-    document.getElementById('spell-4').classList.remove('active');
-  }
-  if (e.code === 'Digit2') {
-    selectedSpell = 2;
-    document.getElementById('spell-2').classList.add('active');
-    document.getElementById('spell-1').classList.remove('active');
-    document.getElementById('spell-3').classList.remove('active');
-    document.getElementById('spell-4').classList.remove('active');
-  }
-  if (e.code === 'Digit3') {
-    selectedSpell = 3;
-    document.getElementById('spell-3').classList.add('active');
-    document.getElementById('spell-1').classList.remove('active');
-    document.getElementById('spell-2').classList.remove('active');
-    document.getElementById('spell-4').classList.remove('active');
-  }
-  if (e.code === 'Digit4') {
-    selectedSpell = 4;
-    document.getElementById('spell-4').classList.add('active');
-    document.getElementById('spell-1').classList.remove('active');
-    document.getElementById('spell-2').classList.remove('active');
-    document.getElementById('spell-3').classList.remove('active');
-  }
+  var n=0;
+  if (e.code === 'Digit1') n=1;
+  else if (e.code === 'Digit2') n=2;
+  else if (e.code === 'Digit3') n=3;
+  else if (e.code === 'Digit4') n=4;
+  else if (e.code === 'Digit5') n=5;
+  if (n) { selectedSpell = n; selectSpell(n); document.title = 'Spell ' + n; }
   if (e.code === 'KeyE' && !isInDialogue) {
     handleInteraction();
   }
@@ -2119,17 +2397,27 @@ renderer.domElement.addEventListener('mousedown',e=>{
   }
 });
 
+function castSpellCost(id) {
+  const c = SPELL_META[id] && SPELL_META[id].cost;
+  if (c && playerMana < c) return false;
+  if (c) playerMana -= c;
+  return true;
+}
+
 window.addEventListener('mouseup',e=>{
   if(e.button===0 && isCharging){
     const held=(performance.now()-chargeStart)/1000;
-    if (selectedSpell === 1) triggerStaffSwipe();
-    else if (selectedSpell === 2) triggerLightning(held);
-    else if (selectedSpell === 3) spawnTornado(getMouseGroundTarget());
-    else if (selectedSpell === 4) {
+    if (selectedSpell === 1 && castSpellCost(1)) triggerStaffSwipe();
+    else if (selectedSpell === 2 && castSpellCost(2)) triggerLightning(held);
+    else if (selectedSpell === 3 && castSpellCost(3)) spawnTornado(getMouseGroundTarget());
+    else if (selectedSpell === 4 && castSpellCost(4)) {
       const tp = getMouseGroundTarget();
       tp.y = Math.max(getH(tp), 0);
       playerPos.copy(tp);
       spawnTeleportFX(tp);
+    } else if (selectedSpell === 5 && castSpellCost(5)) {
+      shieldTimer = 10;
+      spawnShieldFX();
     }
     isCharging=false;
 
@@ -2199,6 +2487,7 @@ function triggerLightning(holdTime){
   
   checkLightningHitsGoblins(targetPos, range ? 9.0 : 4.5, range ? 35 : 15);
   checkLightningHitsTrolls(targetPos, range ? 14.0 : 7.0, range ? 60 : 30);
+  damageEnemiesInRange(targetPos, range ? 9.0 : 4.5, range ? 35 : 15);
   checkTreeHits(targetPos, range ? 20 : 10, 60);
   followerAttack();
 
@@ -2216,6 +2505,7 @@ function triggerLightning(holdTime){
       spawnLightning(skyOrigin2, scatter, range);
       checkLightningHitsGoblins(scatter, range ? 9.0 : 4.5, range ? 35 : 15);
       checkLightningHitsTrolls(scatter, range ? 14.0 : 7.0, range ? 60 : 30);
+      damageEnemiesInRange(scatter, range ? 9.0 : 4.5, range ? 35 : 15);
       checkTreeHits(scatter, range ? 20 : 10, 60);
     }, delay);
   }
@@ -2318,7 +2608,7 @@ function updateTrolls(dt, playerPos){
     }
     tr.pos.addScaledVector(tr.vel, dt);
     checkRuinCollision(tr.pos, 2.5);
-    tr.pos.y = Math.max(getH(tr.pos), 0);
+    tr.pos.y = Math.max(getH(tr.pos), 0);unstuck(tr);
     tr.mesh.group.position.copy(tr.pos);
     if(tr.vel.lengthSq() > 0.001) tr.facingYaw = Math.atan2(tr.vel.x, tr.vel.z);
     tr.mesh.group.rotation.y = tr.facingYaw;
@@ -2480,6 +2770,27 @@ function checkLightningHitsGoblins(impactPos, radius, dmg){
     if(dist<radius) damageGoblin(gb,dmg);
   });
 }
+function damageEnemiesInRange(center, radius, dmg){
+  wretches.forEach(e=>{if(!e.dead&&e.pos.distanceTo(center)<radius)damageWretch(e,dmg);});
+  husks.forEach(e=>{if(!e.dead&&e.pos.distanceTo(center)<radius)damageHusk(e,dmg);});
+  zombies.forEach(e=>{if(!e.dead&&e.pos.distanceTo(center)<radius)damageZombie(e,dmg);});
+  rangers.forEach(e=>{if(!e.dead&&e.pos.distanceTo(center)<radius)damageRanger(e,dmg);});
+  iceElementals.forEach(e=>{if(!e.dead&&e.pos.distanceTo(center)<radius)damageIceElemental(e,dmg);});
+}
+function unstuck(e){
+  if(e.vel.lengthSq()>0.1){
+    if(e._pp){
+      const moved=e.pos.distanceTo(e._pp);
+      e._pp.copy(e.pos);
+      if(moved<0.015&&e.vel.length()>1){
+        const side=new THREE.Vector3(-e.vel.z,0,e.vel.x).normalize().multiplyScalar(3);
+        e.vel.add(side);
+      }
+    }else{
+      e._pp=e.pos.clone();
+    }
+  }
+}
 function checkStaffSwipeHitsGoblins(){
   goblins.forEach(gb=>{
     if(gb.dead) return;
@@ -2489,10 +2800,216 @@ function checkStaffSwipeHitsGoblins(){
       if(!gb.dead && Math.random() < 0.4) killGoblin(gb);
     }
   });
+  damageEnemiesInRange(playerPos, 5.5, 25);
 }
-let playerHp=100, playerMaxHp=100;
+
+// Wretch
+const wretches=[];
+const wretchSkinM=new THREE.MeshLambertMaterial({color:0x0d9488});
+const wretchFleshM=new THREE.MeshLambertMaterial({color:0x047857});
+const wretchEyeM=new THREE.MeshBasicMaterial({color:0xf59e0b});
+function makeWretchMesh(){
+  const g=new THREE.Group();
+  for(let i=0;i<5;i++){
+    const s=new THREE.Mesh(new THREE.SphereGeometry(0.28-i*0.025,8,8),wretchSkinM);
+    s.position.set(0,0.32+Math.sin(i*0.5)*0.04,-i*0.2+0.25);
+    s.scale.set(1.1,0.8,1);s.castShadow=true;g.add(s);
+  }
+  for(const side of[-1,1]){
+    const p=new THREE.Mesh(new THREE.TorusGeometry(0.12,0.03,6,6,Math.PI),wretchFleshM);
+    p.position.set(side*0.15,0.35,0.4);p.rotation.set(0,side*0.5,Math.PI/2);g.add(p);
+  }
+  for(let i=0;i<3;i++)for(const side of[-1,1]){
+    const e=new THREE.Mesh(new THREE.SphereGeometry(0.04,6,6),wretchEyeM);
+    e.position.set(side*(0.1+i*0.035),0.42+i*0.03,0.35);g.add(e);
+  }
+  g.scale.setScalar(3.8);return{group:g};
+}
+function spawnWretch(gx,gz){
+  const h=Math.max(getH({x:gx,z:gz}),0);const m=makeWretchMesh();
+  const p=new THREE.Vector3(gx,h,gz);m.group.position.copy(p);scene.add(m.group);
+  const e={mesh:m,pos:p,vel:new THREE.Vector3(),hp:18,maxHp:18,state:GOBLIN_PATROL,animT:0,attackCooldown:Math.random()*2,patrolTarget:p.clone().add(new THREE.Vector3((Math.random()-0.5)*15,0,(Math.random()-0.5)*15)),facingYaw:Math.random()*Math.PI*2,dead:false,deathTimer:0};
+  wretches.push(e);return e;
+}
+function damageWretch(w,dmg){w.hp-=dmg;if(w.hp<=0){w.dead=true;scene.remove(w.mesh.group);}}
+function updateWretches(dt,pl){
+  wretches.forEach(w=>{
+    if(w.dead){w.deathTimer+=dt;if(w.deathTimer>3){scene.remove(w.mesh.group);}return;}
+    const d=w.pos.distanceTo(pl);
+    if(d<3.5&&w.attackCooldown<=0){damagePlayer(5);w.attackCooldown=2.5;}
+    else if(d<25){const dir=new THREE.Vector3().subVectors(pl,w.pos).normalize();w.vel.lerp(dir.multiplyScalar(4.5),0.05);}
+    else{w.vel.lerp(new THREE.Vector3().subVectors(w.patrolTarget,w.pos).normalize().multiplyScalar(1.8),0.02);if(w.pos.distanceTo(w.patrolTarget)<2)w.patrolTarget.copy(w.pos).add(new THREE.Vector3((Math.random()-0.5)*15,0,(Math.random()-0.5)*15));}
+    w.attackCooldown=Math.max(0,w.attackCooldown-dt);
+    w.pos.addScaledVector(w.vel,dt);w.pos.y=Math.max(getH(w.pos),0);unstuck(w);
+    w.mesh.group.position.copy(w.pos);w.mesh.group.rotation.y+=dt*2;
+  });
+}
+
+// Husk
+const husks=[];
+const huskBoneM=new THREE.MeshLambertMaterial({color:0xe8d5c0});
+const huskRobeM=new THREE.MeshLambertMaterial({color:0x6b21a8});
+function makeHuskMesh(){
+  const g=new THREE.Group();
+  const spine=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.6,6),huskBoneM);
+  spine.position.y=0.5;g.add(spine);
+  for(let i=0;i<4;i++){const r=new THREE.Mesh(new THREE.TorusGeometry(0.14-i*0.015,0.015,6,10,Math.PI),huskBoneM);r.position.set(0,0.75-i*0.1,0);r.rotation.x=Math.PI/2;g.add(r);}
+  const robe=new THREE.Mesh(new THREE.ConeGeometry(0.3,0.55,8),huskRobeM);
+  robe.position.set(0,0.75,0);robe.scale.set(1.2,1,1);g.add(robe);
+  const skull=new THREE.Mesh(new THREE.SphereGeometry(0.12,8,8),huskBoneM);
+  skull.position.set(0,0.9,0.06);skull.scale.set(1,1.1,1);g.add(skull);
+  const hood=new THREE.Mesh(new THREE.ConeGeometry(0.25,0.4,8),huskRobeM);
+  hood.position.set(0,1.1,-0.04);hood.rotation.x=0.25;g.add(hood);
+  for(const side of[-1,1]){const e=new THREE.Mesh(new THREE.SphereGeometry(0.03,6,6),new THREE.MeshBasicMaterial({color:0x06b6d4}));e.position.set(side*0.05,0.93,0.15);g.add(e);}
+  g.scale.setScalar(1.8);return{group:g};
+}
+function spawnHusk(gx,gz){
+  const h=Math.max(getH({x:gx,z:gz}),0);const m=makeHuskMesh();
+  const p=new THREE.Vector3(gx,h,gz);m.group.position.copy(p);scene.add(m.group);
+  const e={mesh:m,pos:p,vel:new THREE.Vector3(),hp:25,maxHp:25,state:GOBLIN_PATROL,animT:0,attackCooldown:2,patrolTarget:p.clone().add(new THREE.Vector3((Math.random()-0.5)*20,0,(Math.random()-0.5)*20)),facingYaw:Math.random()*Math.PI*2,dead:false,deathTimer:0};
+  husks.push(e);return e;
+}
+function damageHusk(h,dmg){h.hp-=dmg;if(h.hp<=0){h.dead=true;scene.remove(h.mesh.group);}}
+function updateHusks(dt,pl){
+  husks.forEach(h=>{
+    if(h.dead){h.deathTimer+=dt;if(h.deathTimer>3)scene.remove(h.mesh.group);return;}
+    const d=h.pos.distanceTo(pl);
+    if(d<4&&h.attackCooldown<=0){damagePlayer(8);h.attackCooldown=3;}
+    else if(d<30){h.vel.lerp(new THREE.Vector3().subVectors(pl,h.pos).normalize().multiplyScalar(3.5),0.04);}
+    else{h.vel.lerp(new THREE.Vector3().subVectors(h.patrolTarget,h.pos).normalize().multiplyScalar(1.5),0.02);if(h.pos.distanceTo(h.patrolTarget)<2)h.patrolTarget.copy(h.pos).add(new THREE.Vector3((Math.random()-0.5)*20,0,(Math.random()-0.5)*20));}
+    h.attackCooldown=Math.max(0,h.attackCooldown-dt);
+    h.pos.addScaledVector(h.vel,dt);h.pos.y=Math.max(getH(h.pos),0);unstuck(h);
+    h.mesh.group.position.copy(h.pos);
+  });
+}
+
+// Zombie
+const zombies=[];
+const zombieMat=new THREE.MeshLambertMaterial({color:0x5a5a3a});
+function makeZombieMesh(){
+  const g=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.15,0.5,8),zombieMat);
+  body.position.y=0.4;body.castShadow=true;g.add(body);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.13,8,8),zombieMat);
+  head.position.y=0.78;head.castShadow=true;g.add(head);
+  for(const side of[-1,1]){const a=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.3,4),zombieMat);a.position.set(side*0.25,0.5,0.05);a.rotation.z=side*0.4;g.add(a);}
+  for(const side of[-1,1]){const e=new THREE.Mesh(new THREE.SphereGeometry(0.035,6,6),new THREE.MeshBasicMaterial({color:0xef4444}));e.position.set(side*0.06,0.81,0.12);g.add(e);}
+  g.scale.setScalar(2.4);return{group:g};
+}
+function spawnZombie(gx,gz){
+  const h=Math.max(getH({x:gx,z:gz}),0);const m=makeZombieMesh();
+  const p=new THREE.Vector3(gx,h,gz);m.group.position.copy(p);scene.add(m.group);
+  const e={mesh:m,pos:p,vel:new THREE.Vector3(),hp:20,maxHp:20,state:GOBLIN_PATROL,animT:0,attackCooldown:2,patrolTarget:p.clone().add(new THREE.Vector3((Math.random()-0.5)*15,0,(Math.random()-0.5)*15)),facingYaw:Math.random()*Math.PI*2,dead:false,deathTimer:0};
+  zombies.push(e);return e;
+}
+function damageZombie(z,dmg){z.hp-=dmg;if(z.hp<=0){z.dead=true;scene.remove(z.mesh.group);}}
+function updateZombies(dt,pl){
+  zombies.forEach(z=>{
+    if(z.dead){z.deathTimer+=dt;if(z.deathTimer>3)scene.remove(z.mesh.group);return;}
+    const d=z.pos.distanceTo(pl);
+    if(d<3&&z.attackCooldown<=0){damagePlayer(7);z.attackCooldown=2.8;}
+    else if(d<20){z.vel.lerp(new THREE.Vector3().subVectors(pl,z.pos).normalize().multiplyScalar(2),0.03);}
+    else{z.vel.lerp(new THREE.Vector3().subVectors(z.patrolTarget,z.pos).normalize().multiplyScalar(1),0.02);if(z.pos.distanceTo(z.patrolTarget)<2)z.patrolTarget.copy(z.pos).add(new THREE.Vector3((Math.random()-0.5)*15,0,(Math.random()-0.5)*15));}
+    z.attackCooldown=Math.max(0,z.attackCooldown-dt);
+    z.pos.addScaledVector(z.vel,dt);z.pos.y=Math.max(getH(z.pos),0);unstuck(z);
+    z.mesh.group.position.copy(z.pos);z.mesh.group.rotation.y+=dt*0.5;
+  });
+}
+
+// Ranger
+const rangers=[];
+const rangerCloakM=new THREE.MeshLambertMaterial({color:0x2d6a2d});
+const rangerBodyM=new THREE.MeshLambertMaterial({color:0x6b4a20});
+function makeRangerMesh(){
+  const g=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.18,0.55,8),rangerBodyM);
+  body.position.y=0.3;body.castShadow=true;g.add(body);
+  const cloak=new THREE.Mesh(new THREE.ConeGeometry(0.22,0.7,8),rangerCloakM);
+  cloak.position.set(0,0.5,0);g.add(cloak);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.1,8,8),rangerBodyM);
+  head.position.y=0.8;g.add(head);
+  const bow=new THREE.Mesh(new THREE.TorusGeometry(0.25,0.02,6,8,Math.PI*0.6),new THREE.MeshLambertMaterial({color:0x8B7355}));
+  bow.position.set(0.25,0.45,0.15);bow.rotation.x=-0.5;g.add(bow);
+  g.scale.setScalar(2.4);return{group:g};
+}
+function spawnRanger(gx,gz){
+  const h=Math.max(getH({x:gx,z:gz}),0);const m=makeRangerMesh();
+  const p=new THREE.Vector3(gx,h,gz);m.group.position.copy(p);scene.add(m.group);
+  const e={mesh:m,pos:p,vel:new THREE.Vector3(),hp:25,maxHp:25,state:GOBLIN_PATROL,animT:0,attackCooldown:2,patrolTarget:p.clone().add(new THREE.Vector3((Math.random()-0.5)*25,0,(Math.random()-0.5)*25)),facingYaw:Math.random()*Math.PI*2,dead:false,deathTimer:0,shootTimer:0};
+  rangers.push(e);return e;
+}
+function damageRanger(r,dmg){r.hp-=dmg;if(r.hp<=0){r.dead=true;scene.remove(r.mesh.group);}}
+function updateRangers(dt,pl){
+  rangers.forEach(r=>{
+    if(r.dead){r.deathTimer+=dt;if(r.deathTimer>3)scene.remove(r.mesh.group);return;}
+    const d=r.pos.distanceTo(pl);
+    if(d<20&&d>5&&r.attackCooldown<=0){
+      damagePlayer(6);
+      const arrow=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.5,4),new THREE.MeshBasicMaterial({color:0x8B4513}));
+      arrow.position.copy(r.pos);arrow.position.y+=0.5;scene.add(arrow);
+      const dir=new THREE.Vector3().subVectors(pl,r.pos).normalize();
+      const arrowVel=dir.clone().multiplyScalar(20);
+      const start=arrow.position.clone();
+      let t=0;const anim=setInterval(()=>{t+=1/60;arrow.position.copy(start).addScaledVector(arrowVel,t);if(t>1||arrow.position.distanceTo(pl)<1.5){scene.remove(arrow);arrow.geometry.dispose();clearInterval(anim);}},1000/60);
+      r.attackCooldown=2.5;
+    }else if(d<30){r.vel.lerp(new THREE.Vector3().subVectors(pl,r.pos).normalize().multiplyScalar(3),0.03);}
+    else{r.vel.lerp(new THREE.Vector3().subVectors(r.patrolTarget,r.pos).normalize().multiplyScalar(1.2),0.02);if(r.pos.distanceTo(r.patrolTarget)<2)r.patrolTarget.copy(r.pos).add(new THREE.Vector3((Math.random()-0.5)*25,0,(Math.random()-0.5)*25));}
+    r.attackCooldown=Math.max(0,r.attackCooldown-dt);
+    r.pos.addScaledVector(r.vel,dt);r.pos.y=Math.max(getH(r.pos),0);unstuck(r);
+    r.mesh.group.position.copy(r.pos);
+  });
+}
+
+// Ice Elemental
+const iceElementals=[];
+const iceBodyM=new THREE.MeshLambertMaterial({color:0xbbddff,transparent:true,opacity:0.7});
+const iceCrystalM=new THREE.MeshLambertMaterial({color:0x88ccff,emissive:0x4488ff,emissiveIntensity:0.3});
+function makeIceElementalMesh(){
+  const g=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.SphereGeometry(0.25,8,8),iceBodyM);
+  body.position.y=0.6;body.castShadow=true;g.add(body);
+  for(let i=0;i<6;i++){
+    const c=new THREE.Mesh(new THREE.ConeGeometry(0.08,0.35,5),iceCrystalM);
+    const a=(i/6)*Math.PI*2;c.position.set(Math.cos(a)*0.3,0.5+Math.sin(i*1.5)*0.15,Math.sin(a)*0.3);
+    c.rotation.set(Math.random(),a,Math.random());g.add(c);
+  }
+  const glow=new THREE.Mesh(new THREE.SphereGeometry(0.15,8,8),new THREE.MeshBasicMaterial({color:0x88ddff,transparent:true,opacity:0.2}));
+  glow.position.y=0.6;g.add(glow);
+  g.scale.setScalar(2.4);return{group:g};
+}
+function spawnIceElemental(gx,gz){
+  const h=Math.max(getH({x:gx,z:gz}),0);const m=makeIceElementalMesh();
+  const p=new THREE.Vector3(gx,h,gz);m.group.position.copy(p);scene.add(m.group);
+  const e={mesh:m,pos:p,vel:new THREE.Vector3(),hp:30,maxHp:30,state:GOBLIN_PATROL,animT:0,attackCooldown:2,patrolTarget:p.clone().add(new THREE.Vector3((Math.random()-0.5)*20,0,(Math.random()-0.5)*20)),facingYaw:Math.random()*Math.PI*2,dead:false,deathTimer:0};
+  iceElementals.push(e);return e;
+}
+function damageIceElemental(e,dmg){e.hp-=dmg;if(e.hp<=0){e.dead=true;scene.remove(e.mesh.group);}}
+function updateIceElementals(dt,pl){
+  iceElementals.forEach(e=>{
+    if(e.dead){e.deathTimer+=dt;if(e.deathTimer>3)scene.remove(e.mesh.group);return;}
+    e.mesh.group.rotation.y+=dt*0.8;e.mesh.group.position.y+=Math.sin(performance.now()*0.003)*dt*0.3;
+    const d=e.pos.distanceTo(pl);
+    if(d<5&&e.attackCooldown<=0){damagePlayer(10);e.attackCooldown=3;camShake=Math.max(camShake,0.3);}
+    else if(d<25){e.vel.lerp(new THREE.Vector3().subVectors(pl,e.pos).normalize().multiplyScalar(3.5),0.04);}
+    else{e.vel.lerp(new THREE.Vector3().subVectors(e.patrolTarget,e.pos).normalize().multiplyScalar(1.5),0.02);if(e.pos.distanceTo(e.patrolTarget)<2)e.patrolTarget.copy(e.pos).add(new THREE.Vector3((Math.random()-0.5)*20,0,(Math.random()-0.5)*20));}
+    e.attackCooldown=Math.max(0,e.attackCooldown-dt);
+    e.pos.addScaledVector(e.vel,dt);e.pos.y=Math.max(getH(e.pos),0);unstuck(e);
+    e.mesh.group.position.copy(e.pos);
+  });
+}
+
+let playerHp=100, playerMaxHp=100, playerMana=100, playerMaxMana=100, shieldTimer=0;
 function damagePlayer(dmg){
-  // Player is invincible to ensure the game never ends
+  if (shieldTimer > 0) dmg = Math.floor(dmg * 0.5);
+  playerHp = Math.max(0, playerHp - dmg);
+  if (playerHp <= 0) {
+    playerHp = playerMaxHp;
+    playerMana = playerMaxMana;
+    playerPos.set(0, 5, 0);
+    velocity.set(0, 0, 0);
+    verticalVel = 0;
+    isGrounded = false;
+  }
 }
 let goblinAccum = 0;
 function updateGoblins(dt, playerPos){
@@ -2561,7 +3078,7 @@ function updateGoblins(dt, playerPos){
 
       gb.pos.addScaledVector(gb.vel, dt);
       checkRuinCollision(gb.pos, 0.85); // Scaled collision radius (0.5 * 1.7)
-      gb.pos.y = Math.max(getH(gb.pos), 0);
+      gb.pos.y = Math.max(getH(gb.pos), 0);unstuck(gb);
 
       gb.mesh.group.position.copy(gb.pos);
       gb.mesh.group.rotation.set(0, 0, 0);
@@ -2616,7 +3133,7 @@ function updateGoblins(dt, playerPos){
 
     gb.pos.addScaledVector(gb.vel, dt); // Apply velocity
     checkRuinCollision(gb.pos, 0.85); // Scaled collision radius (0.5 * 1.7)
-    gb.pos.y = Math.max(getH(gb.pos), 0);
+    gb.pos.y = Math.max(getH(gb.pos), 0);unstuck(gb);
 
     gb.mesh.group.position.copy(gb.pos);
     gb.mesh.group.rotation.set(0, 0, 0);
@@ -2731,8 +3248,57 @@ function animate(){
   updateTornadoes(dt);
   updateGoblins(dt, playerPos);
   updateTrolls(dt, playerPos);
+  updateWretches(dt, playerPos);
+  updateHusks(dt, playerPos);
+  updateZombies(dt, playerPos);
+  updateRangers(dt, playerPos);
+  updateIceElementals(dt, playerPos);
   updateEnvironment(dt);
   updateTreeDebris(dt);
+
+  // Rain update
+  if (rainActive) {
+    const rainArr = rainSystem.geometry.attributes.position.array;
+    for (let i = 0; i < rainCount; i++) {
+      rainArr[i*3+1] -= 20 * dt;
+      if (rainArr[i*3+1] < -2) {
+        rainArr[i*3] = (Math.random() - 0.5) * 200;
+        rainArr[i*3+1] = 40 + Math.random() * 10;
+        rainArr[i*3+2] = (Math.random() - 0.5) * 200;
+      }
+    }
+    rainSystem.geometry.attributes.position.needsUpdate = true;
+    rainSystem.position.x = playerPos.x;
+    rainSystem.position.z = playerPos.z;
+  }
+
+  // Dust particle update
+  if (dustActive) {
+    const dustArr = dustSystem.geometry.attributes.position.array;
+    for (let i = 0; i < dustCount; i++) {
+      dustArr[i*3] += dustVel[i*3] * dt * 2;
+      dustArr[i*3+1] += dustVel[i*3+1] * dt * 1.5;
+      dustArr[i*3+2] += dustVel[i*3+2] * dt * 2;
+      if (dustArr[i*3+1] > 45 || Math.abs(dustArr[i*3]) > 210 || Math.abs(dustArr[i*3+2]) > 210) {
+        dustArr[i*3] = (Math.random() - 0.5) * 400;
+        dustArr[i*3+1] = Math.random() * 5;
+        dustArr[i*3+2] = (Math.random() - 0.5) * 400;
+      }
+    }
+    dustSystem.geometry.attributes.position.needsUpdate = true;
+    dustSystem.position.x = playerPos.x;
+    dustSystem.position.z = playerPos.z;
+  }
+
+  // Mana regen
+  playerMana = Math.min(playerMaxMana, playerMana + 5 * dt);
+  // Shield timer & visual
+  if (shieldTimer > 0) {
+    shieldTimer = Math.max(0, shieldTimer - dt);
+    if (shieldMesh) { shieldMesh.position.copy(playerPos); shieldMesh.position.y += 0.5; shieldMesh.material.opacity = 0.15 + (shieldTimer / 10) * 0.2; }
+  } else if (shieldMesh) { scene.remove(shieldMesh); shieldMesh.geometry.dispose(); shieldMesh.material.dispose(); shieldMesh = null; }
+  // Update orbs
+  updateOrbs();
 
   // NPC proximity check & dialogue auto-close
   if (npcGroup) {
@@ -2806,27 +3372,41 @@ window.addEventListener('resize',()=>{
 const loadingScreen = document.getElementById('loading-screen');
 const loadingIndicator = document.getElementById('loading-indicator');
 
-// Initial camera setup for currentCameraPos and currentLookAt
-// This prevents a camera jump when animate() first runs.
-const initialCamOffset = new THREE.Vector3(Math.sin(camYaw)*Math.cos(camPitch)*camDist, Math.sin(camPitch)*camDist, Math.cos(camYaw)*Math.cos(camPitch)*camDist);
-let initialDesiredCamPos = playerPos.clone().add(initialCamOffset);
-const initialLookAtPos = new THREE.Vector3(playerPos.x, playerPos.y + 1.2, playerPos.z);
-
-// Initialize currentCameraPos and currentLookAt to avoid initial jump
-currentCameraPos.copy(initialDesiredCamPos);
-currentLookAt.copy(initialLookAtPos);
-camera.position.copy(currentCameraPos);
-camera.lookAt(currentLookAt);
-
-updateChunks(); // Initial load
-updateQuestUI(); // Init quest HUD state from sessionStorage
-
-loadingScreen.classList.add('hidden'); // Start fade out
-loadingScreen.addEventListener('transitionend', () => {
+function hideLoadingScreen() {
+  loadingScreen.classList.add('hidden');
   loadingScreen.style.display = 'none';
   loadingIndicator.style.display = 'none';
-}, { once: true });
-animate(); // Start the game loop
+}
+
+// Force-hide loading screen after 5s regardless of errors
+const loadingFallback = setTimeout(hideLoadingScreen, 5000);
+
+try {
+  // Initial camera setup for currentCameraPos and currentLookAt
+  // This prevents a camera jump when animate() first runs.
+  const initialCamOffset = new THREE.Vector3(Math.sin(camYaw)*Math.cos(camPitch)*camDist, Math.sin(camPitch)*camDist, Math.cos(camYaw)*Math.cos(camPitch)*camDist);
+  let initialDesiredCamPos = playerPos.clone().add(initialCamOffset);
+  const initialLookAtPos = new THREE.Vector3(playerPos.x, playerPos.y + 1.2, playerPos.z);
+
+  // Initialize currentCameraPos and currentLookAt to avoid initial jump
+  currentCameraPos.copy(initialDesiredCamPos);
+  currentLookAt.copy(initialLookAtPos);
+  camera.position.copy(currentCameraPos);
+  camera.lookAt(currentLookAt);
+
+  updateChunks(); // Initial load
+  updateQuestUI(); // Init quest HUD state from sessionStorage
+
+  loadingScreen.classList.add('hidden'); // Start fade out
+  loadingScreen.addEventListener('transitionend', () => {
+    loadingScreen.style.display = 'none';
+    loadingIndicator.style.display = 'none';
+  }, { once: true });
+  clearTimeout(loadingFallback);
+  animate(); // Start the game loop
+} catch (e) {
+  hideLoadingScreen();
+}
 
 document.getElementById("return-overworld-btn").addEventListener("click", () => {
   sessionStorage.setItem('app_nav','1'); window.location.href = "overworld.html";
@@ -2834,25 +3414,64 @@ document.getElementById("return-overworld-btn").addEventListener("click", () => 
 
 // Spell tooltips and hover effects
 const SPELL_META = {
-  1: { name: 'Staff Swipe', stats: 'Melee AoE • 40 dmg • 6m radius' },
-  2: { name: 'Lightning', stats: 'Ranged strike • 25-60 dmg • Hold to charge' },
-  3: { name: 'Tornado', stats: 'Summon vortex • Pulls & damages foes • 8s duration' },
-  4: { name: 'Teleport', stats: 'Instant travel to target location • 2000m range' },
+  1: { name: 'Staff Swipe', stats: 'Melee AoE • 40 dmg • 6m radius • 0 mana', cost: 0 },
+  2: { name: 'Lightning', stats: 'Ranged strike • 25-60 dmg • Hold to charge • 20 mana', cost: 20 },
+  3: { name: 'Tornado', stats: 'Summon vortex • Pulls & damages foes • 8s duration • 35 mana', cost: 35 },
+  4: { name: 'Teleport', stats: 'Instant travel to target location • 2000m range • 25 mana', cost: 25 },
+  5: { name: 'Shield', stats: 'Barrier absorbs 50% damage • 10s duration • 30 mana', cost: 30 },
 };
 const tooltipEl = document.getElementById('spell-tooltip');
 document.querySelectorAll('.spell-icon').forEach(el => {
   el.addEventListener('mouseenter', e => {
-    const id = parseInt(el.dataset.spell, 10);
+    if (!tooltipEl) return;
+    const icon = e.target.closest('.spell-icon');
+    if (!icon) return;
+    const id = parseInt(icon.dataset.spell, 10);
     const m = SPELL_META[id];
     if (m) tooltipEl.innerHTML = `<div class="tt-name">${m.name}</div><div class="tt-stat">${m.stats}</div>`;
-    const r = el.getBoundingClientRect();
+    const r = icon.getBoundingClientRect();
     tooltipEl.style.left = (r.left + r.width/2) + 'px';
     tooltipEl.style.top = (r.top - 8) + 'px';
     tooltipEl.style.transform = 'translate(-50%, -100%)';
     tooltipEl.classList.add('visible');
   });
-  el.addEventListener('mouseleave', () => tooltipEl.classList.remove('visible'));
+  el.addEventListener('mouseleave', () => { if (tooltipEl) tooltipEl.classList.remove('visible'); });
+  el.addEventListener('click', () => {
+    const id = parseInt(el.dataset.spell, 10);
+    if (id >= 1 && id <= 5) { selectedSpell = id; selectSpell(id); document.title = 'Spell ' + id; }
+  });
 });
+
+// Health/Mana orb updates and tooltips
+const hpClipRect = document.getElementById('hp-clip-rect');
+const manaClipRect = document.getElementById('mana-clip-rect');
+const orbTooltip = document.getElementById('orb-tooltip');
+function updateOrbs() {
+  const hpPct = Math.max(0, playerHp / playerMaxHp);
+  const mpPct = Math.max(0, playerMana / playerMaxMana);
+  hpClipRect.setAttribute('y', 4 + 56 * (1 - hpPct));
+  hpClipRect.setAttribute('height', 56 * hpPct);
+  manaClipRect.setAttribute('y', 4 + 56 * (1 - mpPct));
+  manaClipRect.setAttribute('height', 56 * mpPct);
+}
+document.getElementById('hp-orb').addEventListener('mouseenter', e => {
+  orbTooltip.innerHTML = `<div class="tt-name">Health</div><div class="tt-stat">${playerHp}/${playerMaxHp}</div>`;
+  const r = e.target.closest('.orb').getBoundingClientRect();
+  orbTooltip.style.left = (r.left + r.width/2) + 'px';
+  orbTooltip.style.top = (r.top - 8) + 'px';
+  orbTooltip.style.transform = 'translate(-50%, -100%)';
+  orbTooltip.classList.add('visible');
+});
+document.getElementById('hp-orb').addEventListener('mouseleave', () => orbTooltip.classList.remove('visible'));
+document.getElementById('mana-orb').addEventListener('mouseenter', e => {
+  orbTooltip.innerHTML = `<div class="tt-name">Mana</div><div class="tt-stat">${Math.floor(playerMana)}/${playerMaxMana}</div>`;
+  const r = e.target.closest('.orb').getBoundingClientRect();
+  orbTooltip.style.left = (r.left + r.width/2) + 'px';
+  orbTooltip.style.top = (r.top - 8) + 'px';
+  orbTooltip.style.transform = 'translate(-50%, -100%)';
+  orbTooltip.classList.add('visible');
+});
+document.getElementById('mana-orb').addEventListener('mouseleave', () => orbTooltip.classList.remove('visible'));
 
 // Teleport visual effect (ring flash at destination)
 function spawnTeleportFX(pos) {
@@ -2879,6 +3498,17 @@ function spawnTeleportFX(pos) {
       clearInterval(anim);
     }
   }, 1000/60);
+}
+
+let shieldMesh = null;
+function spawnShieldFX() {
+  if (shieldMesh) { scene.remove(shieldMesh); shieldMesh.geometry.dispose(); shieldMesh.material.dispose(); }
+  const sGeo = new THREE.SphereGeometry(1.8, 16, 16);
+  const sMat = new THREE.MeshBasicMaterial({color: 0x4488ff, transparent: true, opacity: 0.25, side: THREE.DoubleSide, blending: THREE.AdditiveBlending});
+  shieldMesh = new THREE.Mesh(sGeo, sMat);
+  shieldMesh.position.copy(playerPos);
+  shieldMesh.position.y += 0.5;
+  scene.add(shieldMesh);
 }
 
 // Biome dropdown

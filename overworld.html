@@ -590,12 +590,12 @@
 
       <div class="tab-content hidden" id="tab-skills">
         <div class="action-bar" style="margin-top: 0px;">
-          <button class="action-btn" id="btn-swing" data-spell="melee swing">
-            <span class="lock-icon"></span>
-            <span class="skill-name" style="color:#fb923c; font-weight:bold;">Melee Swing</span>
-            <span class="cost">1 AP</span>
-            <span class="hotkey">[1]</span>
-          </button>
+    <button class="action-btn" id="btn-swing" data-spell="melee swing">
+      <span class="lock-icon"></span>
+      <span class="skill-name" style="color:#fb923c; font-weight:bold;">Melee Swing</span>
+      <span class="cost">Free</span>
+      <span class="hotkey">[1]</span>
+    </button>
           <button class="action-btn" id="btn-strike" data-spell="weapon strike">
             <span class="lock-icon"></span>
             <span class="skill-name" style="color:#cbd5e1; font-weight:bold;">Weapon Strike</span>
@@ -3683,7 +3683,8 @@ function selectSpell(spellName) {
   }
   else {
     let cost = 1;
-    if (spellName === "soul drain" || spellName === "lightning bolt" || spellName === "teleport") cost = 2;
+    if (spellName === "melee swing") cost = 0;
+    else if (spellName === "soul drain" || spellName === "lightning bolt" || spellName === "teleport") cost = 2;
 
     if (state.ap < cost) { log(`Not enough AP! ${spellName} requires <span class="highlight">${cost} AP</span>.`); SoundSystem.playBuzzer(); return; }
     spell = spellName; SoundSystem.playSpellCast(); updateUI();
@@ -4065,7 +4066,8 @@ window.addEventListener("pointerdown", e => {
     }
 
     let cost = 1;
-    if (spell === "soul drain" || spell === "lightning bolt") cost = 2;
+    if (spell === "melee swing") cost = 0;
+    else if (spell === "soul drain" || spell === "lightning bolt") cost = 2;
 
     if (dist > SPELL_RANGE[spell]) { log(`Target out of reach for ${spell}.`); spell = null; updateUI(); return; }
     if (state.ap < cost) { log("Magic disrupted! Action Points depleted."); SoundSystem.playBuzzer(); spell = null; updateUI(); return; }
